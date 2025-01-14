@@ -4,6 +4,8 @@
 
 main.c
 
+src\automation.c
+
 src\i2c.c
 
 src\sensor.c

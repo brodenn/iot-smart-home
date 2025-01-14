@@ -122,6 +122,9 @@
     </ToolchainSettings>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="include\automation.h">
+      <SubType>compile</SubType>
+    </Compile>
     <Compile Include="include\i2c.h">
       <SubType>compile</SubType>
     </Compile>
@@ -132,6 +135,9 @@
       <SubType>compile</SubType>
     </Compile>
     <Compile Include="main.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="src\automation.c">
       <SubType>compile</SubType>
     </Compile>
     <Compile Include="src\i2c.c">
