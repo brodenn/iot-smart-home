@@ -1,6 +1,35 @@
-/*
- * i2c.c
- *
- * Created: 14/01/2025 12:53:02
- *  Author: brode
- */ 
+#include <avr/io.h>
+#include "i2c.h"
+
+void I2C_Init() {
+    TWSR = 0x00;        // Set prescaler to 1
+    TWBR = 72;          // Set SCL frequency to 100 kHz
+    TWCR = (1 << TWEN); // Enable TWI (I2C)
+}
+
+void I2C_Start() {
+    TWCR = (1 << TWSTA) | (1 << TWEN) | (1 << TWINT); // Send START condition
+    while (!(TWCR & (1 << TWINT)));                  // Wait for completion
+}
+
+void I2C_Stop() {
+    TWCR = (1 << TWSTO) | (1 << TWEN) | (1 << TWINT); // Send STOP condition
+}
+
+void I2C_Write(uint8_t data) {
+    TWDR = data;                      // Load data into data register
+    TWCR = (1 << TWEN) | (1 << TWINT); // Start transmission
+    while (!(TWCR & (1 << TWINT)));   // Wait for completion
+}
+
+uint8_t I2C_Read_ACK() {
+    TWCR = (1 << TWEN) | (1 << TWEA) | (1 << TWINT); // Enable ACK and start reception
+    while (!(TWCR & (1 << TWINT)));                 // Wait for completion
+    return TWDR;                                    // Return received data
+}
+
+uint8_t I2C_Read_NACK() {
+    TWCR = (1 << TWEN) | (1 << TWINT); // Start reception without ACK
+    while (!(TWCR & (1 << TWINT)));   // Wait for completion
+    return TWDR;                      // Return received data
+}
