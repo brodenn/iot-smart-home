@@ -1,18 +1,27 @@
-/*
- * TempHumMonitor.c
- *
- * Created: 10/01/2025 10:53:09
- * Author : brode
- */ 
+#include "i2c.h"
+#include "sensor.h"
+#include "uart.h"
+#include <util/delay.h>
+#include <stdio.h>
 
-#include <avr/io.h>
+int main() {
+    char buffer[50];
 
+    I2C_Init();  // Initialize I2C
+    UART_Init(); // Initialize UART for debugging
 
-int main(void)
-{
-    /* Replace with your application code */
-    while (1) 
-    {
+    while (1) {
+        // Read temperature
+        float temperature = Si7021_ReadTemperature();
+
+        // Format the temperature reading for UART
+        sprintf(buffer, "Temperature: %.2f°C\r\n", temperature);
+
+        // Send the temperature to the serial monitor
+        UART_SendString(buffer);
+
+        _delay_ms(2000); // Delay before the next measurement
     }
-}
 
+    return 0;
+}
