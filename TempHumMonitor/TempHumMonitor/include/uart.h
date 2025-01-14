@@ -1,16 +1,18 @@
-/*
- * uart.h
- *
- * Created: 14/01/2025 12:51:09
- *  Author: brode
- */ 
+#ifndef UART_H
+#define UART_H
 
+#include <stdint.h>
 
-#ifndef UART_H_
-#define UART_H_
+// Initialize UART with a given baud rate
+void UART_Init(void);
 
+// Send a single character over UART
+void UART_SendChar(char c);
 
+// Send a null-terminated string over UART
+void UART_SendString(const char* str);
 
+// (Optional) Receive a single character from UART
+char UART_ReceiveChar(void);
 
-
-#endif /* UART_H_ */
+#endif // UART_H
