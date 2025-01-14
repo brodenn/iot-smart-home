@@ -1,16 +1,12 @@
-/*
- * sensor.h
- *
- * Created: 14/01/2025 12:50:44
- *  Author: brode
- */ 
+#ifndef SENSOR_H
+#define SENSOR_H
 
+#include <stdint.h>
 
-#ifndef SENSOR_H_
-#define SENSOR_H_
+// Function to read temperature from the Si7021 sensor
+float Si7021_ReadTemperature(void);
 
+// (Optional) Declare other sensor-related functions if needed
+// Example: Reading humidity, checking sensor status, etc.
 
-
-
-
-#endif /* SENSOR_H_ */
+#endif // SENSOR_H

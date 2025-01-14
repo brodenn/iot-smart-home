@@ -1,5 +1,5 @@
 #include <avr/io.h>
-#include "uart.h"
+#include "../include/uart.h"
 
 void UART_Init() {
     // Set baud rate (9600 with 16MHz clock)
