@@ -1,4 +1,4 @@
-#define F_CPU 16000000UL // Define clock frequency for delay
+#define F_CPU 16000000UL
 #include "include/i2c.h"
 #include "include/sensor.h"
 #include "include/uart.h"
@@ -6,30 +6,28 @@
 #include <stdio.h>
 
 int main() {
-    char buffer[50];
+    char buffer[100]; // Buffer for UART messages
 
-    I2C_Init();  // Initialize I2C
-    UART_Init(); // Initialize UART
+    UART_Init();   // Initialize UART for serial communication
+    I2C_Init();    // Initialize I2C for Si7021 sensor
+    ADC_Init();    // Initialize ADC for light sensor
 
-    UART_SendString("Starting temperature and humidity monitoring...\r\n");
+    UART_SendString("Starting sensor monitoring...\r\n");
 
     while (1) {
-        // Read temperature
-        float temperature = Si7021_ReadTemperature();
-        int temp_whole = (int)temperature;
-        int temp_fraction = (int)((temperature - temp_whole) * 100);
-        if (temp_fraction < 0) temp_fraction = -temp_fraction;
+        // Read temperature and humidity
+        int16_t temperature = Si7021_ReadTemperature();
+        int16_t humidity = Si7021_ReadHumidity();
 
-        // Read humidity
-        float humidity = Si7021_ReadHumidity();
-        int hum_whole = (int)humidity;
-        int hum_fraction = (int)((humidity - hum_whole) * 100);
-        if (hum_fraction < 0) hum_fraction = -hum_fraction;
+        // Read light intensity
+        uint16_t lux = LightSensor_ReadLux();
 
-        // Format and display temperature and humidity
-        sprintf(buffer, "Temperature: %d.%02d degC, Humidity: %d.%02d%%RH\r\n",
-        temp_whole, temp_fraction, hum_whole, hum_fraction);
-        UART_SendString(buffer);
+        // Format and send sensor data
+        sprintf(buffer, "Temp: %d.%02d degC, Hum: %d.%02d%%RH, Light: %u lux\r\n",
+        temperature / 100, temperature % 100,
+        humidity / 100, humidity % 100,
+        lux);
+        UART_SendString(buffer); // Send the formatted string
 
         _delay_ms(2000); // 2-second delay
     }

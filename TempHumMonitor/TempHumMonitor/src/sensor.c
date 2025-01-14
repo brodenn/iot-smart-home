@@ -1,74 +1,115 @@
+#define F_CPU 16000000UL
+#include "../include/sensor.h"
+#include "../include/uart.h"
 #include "../include/i2c.h"
+#include <avr/io.h>
 #include <util/delay.h>
 #include <stdio.h>
 
-#define SI7021_ADDR 0x40 // I2C address of Si7021
+// Si7021 I2C address
+#define SI7021_ADDR 0x40
 
-float Si7021_ReadTemperature() {
-    uint8_t msb = 0, lsb = 0;
-    uint16_t rawTemp;
+// Si7021 Commands
+#define TEMP_MEASURE_HOLD 0xE3
+#define HUMID_MEASURE_HOLD 0xE5
 
-    // Start I2C transaction to initiate temperature measurement
-    I2C_Start();
-    I2C_Write(SI7021_ADDR << 1); // Write mode
-    I2C_Write(0xE3);             // Command to measure temperature
-    I2C_Stop();
+// -------- ADC Functions --------
 
-    _delay_ms(50); // Wait for the sensor to complete measurement
-
-    // Read the temperature data (2 bytes)
-    I2C_Start();
-    I2C_Write((SI7021_ADDR << 1) | 1); // Read mode
-    msb = I2C_Read_ACK();             // Most significant byte
-    lsb = I2C_Read_NACK();            // Least significant byte
-    I2C_Stop();
-
-    // Print raw data for debugging
-    char debugMsg[50];
-    sprintf(debugMsg, "Raw Temp Data: MSB=0x%02X, LSB=0x%02X\r\n", msb, lsb);
-    UART_SendString(debugMsg);
-
-    // Combine the two bytes into a 16-bit value
-    rawTemp = (msb << 8) | lsb;
-
-    // Check for invalid values
-    if (rawTemp == 0xFFFF || rawTemp == 0x0000) {
-        UART_SendString("Error: Invalid temperature data\r\n");
-        return -999.0; // Return error code
-    }
-
-    // Convert the raw temperature to °C
-    return ((175.72 * rawTemp) / 65536.0) - 46.85;
+// Initialize the ADC for reading the light sensor
+void ADC_Init() {
+    // Configure ADC: AVCC as reference, right-adjusted result
+    ADMUX = (1 << REFS0); // Reference voltage = AVCC
+    ADCSRA = (1 << ADEN) | (1 << ADPS1) | (1 << ADPS0); // Enable ADC and set prescaler to 8
 }
 
-float Si7021_ReadHumidity() {
+uint16_t ADC_Read(uint8_t channel) {
+    // Select ADC channel
+    ADMUX = (ADMUX & 0xF0) | (channel & 0x0F);
+    
+    // Start conversion
+    ADCSRA |= (1 << ADSC);
+    
+    // Wait for conversion to complete
+    while (ADCSRA & (1 << ADSC));
+    
+    // Return ADC result
+    return ADC;
+}
+
+uint16_t LightSensor_ReadLux() {
+    uint16_t adcValue = ADC_Read(1); // Read from channel A1
+    char buffer[50];
+
+    // Debug raw ADC value
+    sprintf(buffer, "Raw ADC Value: %u\r\n", adcValue);
+    UART_SendString(buffer);
+
+    // Convert ADC value to voltage
+    float voltage = (adcValue * 3.3) / 1023.0; // Assuming 3.3V reference voltage
+
+    // Calculate lux (adjust sensitivity based on ALS-PT19 datasheet)
+    uint16_t lux = (uint16_t)(voltage / 0.005); // Example sensitivity: 0.005 V/lux
+
+    return lux;
+}
+
+
+
+// -------- Si7021 Functions --------
+
+int16_t Si7021_ReadTemperature() {
     uint8_t msb, lsb;
-    uint16_t rawHumidity;
+    uint16_t rawTemp;
 
-    // Start I2C transaction to initiate humidity measurement
     I2C_Start();
-    I2C_Write(SI7021_ADDR << 1); // Send device address with write bit
-    I2C_Write(0xE5);             // Command to measure humidity
+    I2C_Write(SI7021_ADDR << 1);
+    I2C_Write(0xE3); // Temperature measurement command
     I2C_Stop();
 
-    _delay_ms(50); // Wait for the sensor to complete measurement
+    _delay_ms(50);
 
-    // Read the humidity data (2 bytes)
     I2C_Start();
-    I2C_Write((SI7021_ADDR << 1) | 1); // Send device address with read bit
-    msb = I2C_Read_ACK();             // Most significant byte
-    lsb = I2C_Read_NACK();            // Least significant byte
+    I2C_Write((SI7021_ADDR << 1) | 1);
+    msb = I2C_Read_ACK();
+    lsb = I2C_Read_NACK();
     I2C_Stop();
 
-    // Combine the two bytes into a 16-bit value
-    rawHumidity = (msb << 8) | lsb;
+    rawTemp = (msb << 8) | lsb;
 
-    // Check for invalid values
-    if (rawHumidity == 0xFFFF || rawHumidity == 0x0000) {
-        UART_SendString("Error: Invalid humidity data\r\n");
-        return -999.0; // Return error code
-    }
+    // Debug raw temperature data
+    char buffer[50];
+    sprintf(buffer, "Raw Temp Data: MSB=0x%02X, LSB=0x%02X\r\n", msb, lsb);
+    UART_SendString(buffer);
 
-    // Convert the raw humidity to %RH
-    return ((125.0 * rawHumidity) / 65536.0) - 6.0;
+    // Calculate temperature in hundredths of a degree
+    return ((17572L * rawTemp) / 65536L) - 4685;
+}
+
+
+int16_t Si7021_ReadHumidity() {
+    uint8_t msb, lsb;
+    uint16_t rawHum;
+
+    I2C_Start();
+    I2C_Write(SI7021_ADDR << 1);
+    I2C_Write(0xE5); // Humidity measurement command
+    I2C_Stop();
+
+    _delay_ms(50);
+
+    I2C_Start();
+    I2C_Write((SI7021_ADDR << 1) | 1);
+    msb = I2C_Read_ACK();
+    lsb = I2C_Read_NACK();
+    I2C_Stop();
+
+    rawHum = (msb << 8) | lsb;
+
+    // Debug raw humidity data
+    char buffer[50];
+    sprintf(buffer, "Raw Hum Data: MSB=0x%02X, LSB=0x%02X\r\n", msb, lsb);
+    UART_SendString(buffer);
+
+    // Calculate humidity in hundredths of a percent
+    return ((12500L * rawHum) / 65536L) - 600;
 }
