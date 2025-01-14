@@ -40,3 +40,35 @@ float Si7021_ReadTemperature() {
     // Convert the raw temperature to °C
     return ((175.72 * rawTemp) / 65536.0) - 46.85;
 }
+
+float Si7021_ReadHumidity() {
+    uint8_t msb, lsb;
+    uint16_t rawHumidity;
+
+    // Start I2C transaction to initiate humidity measurement
+    I2C_Start();
+    I2C_Write(SI7021_ADDR << 1); // Send device address with write bit
+    I2C_Write(0xE5);             // Command to measure humidity
+    I2C_Stop();
+
+    _delay_ms(50); // Wait for the sensor to complete measurement
+
+    // Read the humidity data (2 bytes)
+    I2C_Start();
+    I2C_Write((SI7021_ADDR << 1) | 1); // Send device address with read bit
+    msb = I2C_Read_ACK();             // Most significant byte
+    lsb = I2C_Read_NACK();            // Least significant byte
+    I2C_Stop();
+
+    // Combine the two bytes into a 16-bit value
+    rawHumidity = (msb << 8) | lsb;
+
+    // Check for invalid values
+    if (rawHumidity == 0xFFFF || rawHumidity == 0x0000) {
+        UART_SendString("Error: Invalid humidity data\r\n");
+        return -999.0; // Return error code
+    }
+
+    // Convert the raw humidity to %RH
+    return ((125.0 * rawHumidity) / 65536.0) - 6.0;
+}
