@@ -1,11 +1,11 @@
 #include "wifi.h"
 #include "tcp_server.h"
 #include "http_server.h"
-#include <stddef.h>           // For NULL
-#include "esp_log.h"          // For logging functions (ESP_LOGI, etc.)
-#include "freertos/FreeRTOS.h"  // For FreeRTOS functions
-#include "freertos/task.h"       // For xTaskCreate and task management
-
+#include "json_parser.h"
+#include <stddef.h>  // For NULL
+#include "esp_log.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
 
 void app_main(void) {
     ESP_LOGI("MAIN", "Starting Wi-Fi...");

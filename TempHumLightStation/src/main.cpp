@@ -1,10 +1,11 @@
 #include <Arduino.h>
-#include "globals.h"
-#include "sensor.h"
-#include "automation.h"
-#include "i2c.h"
-#include "wifi_tcp.h"
 #include <SoftwareSerial.h>
+#include "../include/globals.h" // Include globals for credentials
+#include "../include/sensor.h"  // Include sensor functions
+#include "../include/automation.h" // Include automation functions
+#include "../include/i2c.h" // Include I2C functions
+#include "../include/wifi_tcp.h" // Include Wi-Fi and TCP functions
+#include "../include/helpers.h" // Include helpers for handling setpoints
 
 // Define RX and TX pins for ESP8266 communication
 #define RX 8
@@ -16,53 +17,50 @@ SoftwareSerial espSerial(RX, TX);
 void setup() {
     // Initialize Serial for debugging
     Serial.begin(9600);
-    delay(1000);
+    delay(5000);
 
     // Initialize SoftwareSerial for ESP8266
     espSerial.begin(9600);
-    delay(1000);
+    delay(7000);
 
-    // Initialize sensors and automation
-    I2C_Init();
+    initializeWiFiAndTCP(); // This will include the handshake process
+
     ADC_Init();
+    I2C_Init();
     Automation_Init();
-
-    Serial.println("=== ESP8266 TCP Client with Sensor Integration ===");
-
-    // Initialize ESP8266
-    resetESP8266();
-    setWiFiMode();
-    connectToWiFi();
 }
 
 void loop() {
-    if (!connected) {
-        connectToServer();
+    // Check for incoming data from the server
+    if (espSerial.available()) {
+        String data = espSerial.readStringUntil('\n');
+        handleSetpoints(data);
     }
 
-    if (connected) {
+    // Periodically check the connection status and send sensor data
+    static unsigned long lastCheck = 0;
+    unsigned long currentMillis = millis();
+    if (currentMillis - lastCheck >= 10000) { // Check every 10 seconds
+        lastCheck = currentMillis;
+        if (!checkConnection()) {
+            connectToServer();
+        }
+
         // Read sensor data
         int16_t temperature = Si7021_ReadTemperature();
         int16_t humidity = Si7021_ReadHumidity();
-        uint16_t lux = LightSensor_ReadLux();
+        uint16_t light = LightSensor_ReadLux();
 
-        // Update automation states
+        // Update automation system with sensor data
         Automation_Update(temperature, humidity);
-        uint8_t heaterState = GetHeaterState();
-        uint8_t dehumidifierState = GetDehumidifierState();
 
-        // Create JSON string with sensor data
-        String jsonData = String("{\"temperature\":") + (temperature / 100.0) +
-                          ",\"humidity\":" + (humidity / 100.0) +
-                          ",\"lux\":" + lux +
-                          ",\"heater\":" + (heaterState ? "true" : "false") +
-                          ",\"dehumidifier\":" + (dehumidifierState ? "true" : "false") + "}";
+        // Format sensor data into a JSON message
+        String sensorData = "{\"temperature\":" + String(temperature / 100.0, 2) + 
+                            ",\"humidity\":" + String(humidity / 100.0, 2) + 
+                            ",\"lux\":" + String(light) + 
+                            ",\"heater\":" + String(GetHeaterState() ? "true" : "false") + 
+                            ",\"dehumidifier\":" + String(GetDehumidifierState() ? "true" : "false") + "}\n";
 
-        // Send sensor data to the ESP32
-        sendTCPMessage(jsonData.c_str());
-        delay(10000); // Send data every 10 seconds
-    } else {
-        Serial.println("Reconnecting to server...");
-        connectToServer();
+        sendTCPMessage(sensorData.c_str());
     }
 }

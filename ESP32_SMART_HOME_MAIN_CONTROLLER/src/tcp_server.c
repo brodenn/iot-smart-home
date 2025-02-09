@@ -12,17 +12,30 @@
 #include "wifi.h"
 #include "json_parser.h"
 #include "globals.h"
-
+#include "handshake.h"
+#include "tcp_server.h"
 
 #define PORT 8080
 static const char *TAG = "TCP_SERVER";
 
-// Global variables to hold the sensor data
-float temperature = 0.0;
-float humidity = 0.0;
-uint16_t lux = 0;
-bool heater = false;
-bool dehumidifier = false;
+void send_tcp_message(const char *message) {
+    if (client_sock < 0) {
+        ESP_LOGE(TAG, "No client connected");
+        return;
+    }
+
+    int len = strlen(message);
+    int to_write = len;
+    while (to_write > 0) {
+        int written = send(client_sock, message + (len - to_write), to_write, 0);
+        if (written < 0) {
+            ESP_LOGE(TAG, "Send failed: errno %d", errno);
+            break;
+        }
+        to_write -= written;
+    }
+    ESP_LOGI(TAG, "Sent message: %s", message);
+}
 
 // Function to initialize the TCP server
 void tcp_server_task(void *pvParameters) {
@@ -62,9 +75,10 @@ void tcp_server_task(void *pvParameters) {
     ESP_LOGI(TAG, "Socket listening");
 
     while (1) {
+        ESP_LOGI(TAG, "Waiting for a connection...");
         struct sockaddr_in client_addr;
         socklen_t addr_len = sizeof(client_addr);
-        int client_sock = accept(listen_sock, (struct sockaddr *)&client_addr, &addr_len);
+        client_sock = accept(listen_sock, (struct sockaddr *)&client_addr, &addr_len);
         if (client_sock < 0) {
             ESP_LOGE(TAG, "Unable to accept connection: errno %d", errno);
             break;
@@ -72,6 +86,8 @@ void tcp_server_task(void *pvParameters) {
 
         inet_ntoa_r(client_addr.sin_addr, addr_str, sizeof(addr_str) - 1);
         ESP_LOGI(TAG, "Client connected: %s", addr_str);
+
+        performHandshake();
 
         char rx_buffer[128];
         while (1) {
@@ -87,22 +103,30 @@ void tcp_server_task(void *pvParameters) {
             rx_buffer[len] = '\0';
             ESP_LOGI(TAG, "Received: %s", rx_buffer);
 
-            // Parse the received JSON data
-            parse_json(rx_buffer);
-
-            // Echo received data back to the client
-            int to_write = len;
-            while (to_write > 0) {
-                int written = send(client_sock, rx_buffer + (len - to_write), to_write, 0);
-                if (written < 0) {
-                    ESP_LOGE(TAG, "Send failed: errno %d", errno);
-                    break;
+            // Check if the message is a data message
+            if (strncmp(rx_buffer, "DATA:", 5) == 0) {
+                ESP_LOGI(TAG, "Received data: %s", rx_buffer + 5);
+                // Send acknowledgment
+                send_tcp_message("ACK\n");
+            } else if (strncmp(rx_buffer, "HANDSHAKE:", 10) == 0) {
+                ESP_LOGI(TAG, "Received handshake message: %s", rx_buffer);
+                if (strncmp(rx_buffer, "HANDSHAKE:ARDUINO_READY\n", 24) == 0) {
+                    ESP_LOGI(TAG, "Handshake received from Arduino. Sending response...");
+                    send_tcp_message("HANDSHAKE:ESP32_READY\n");
+                    handshake_done = true;
+                } else {
+                    ESP_LOGE(TAG, "Unexpected handshake message: %s", rx_buffer);
+                    send_tcp_message("ERROR:HANDSHAKE_FAILED\n");
                 }
-                to_write -= written;
+            } else {
+                ESP_LOGE(TAG, "Unexpected message: %s", rx_buffer);
+                send_tcp_message("ERROR:UNEXPECTED_MESSAGE\n");
             }
         }
 
         close(client_sock);
+        client_sock = -1;
+        handshake_done = false;
         ESP_LOGI(TAG, "Client connection closed");
     }
 

@@ -3,12 +3,6 @@
 
 #include <stdint.h>
 
-// External variables for setpoints and hysteresis
-extern int16_t SP_TEMP;
-extern int16_t SP_TEMP_HYS;
-extern int16_t SP_HUM;
-extern int16_t SP_HUM_HYS;
-
 // Function prototypes
 void Automation_Init(void);
 void Automation_Update(int16_t temperature, int16_t humidity);

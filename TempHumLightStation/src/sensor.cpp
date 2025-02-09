@@ -38,11 +38,6 @@ uint16_t ADC_Read(uint8_t channel) {
 
 uint16_t LightSensor_ReadLux() {
     uint16_t adcValue = ADC_Read(1); // Read from channel A1
-    char buffer[50];
-
-    // Debug raw ADC value
-    sprintf(buffer, "Raw ADC Value: %u\r\n", adcValue);
-    UART_SendString(buffer);
 
     // Convert ADC value to voltage
     float voltage = (adcValue * 3.3) / 1023.0; // Assuming 3.3V reference voltage
@@ -52,8 +47,6 @@ uint16_t LightSensor_ReadLux() {
 
     return lux;
 }
-
-
 
 // -------- Si7021 Functions --------
 
@@ -76,15 +69,9 @@ int16_t Si7021_ReadTemperature() {
 
     rawTemp = (msb << 8) | lsb;
 
-    // Debug raw temperature data
-    char buffer[50];
-    sprintf(buffer, "Raw Temp Data: MSB=0x%02X, LSB=0x%02X\r\n", msb, lsb);
-    UART_SendString(buffer);
-
     // Calculate temperature in hundredths of a degree
     return ((17572L * rawTemp) / 65536L) - 4685;
 }
-
 
 int16_t Si7021_ReadHumidity() {
     uint8_t msb, lsb;
@@ -104,11 +91,6 @@ int16_t Si7021_ReadHumidity() {
     I2C_Stop();
 
     rawHum = (msb << 8) | lsb;
-
-    // Debug raw humidity data
-    char buffer[50];
-    sprintf(buffer, "Raw Hum Data: MSB=0x%02X, LSB=0x%02X\r\n", msb, lsb);
-    UART_SendString(buffer);
 
     // Calculate humidity in hundredths of a percent
     return ((12500L * rawHum) / 65536L) - 600;

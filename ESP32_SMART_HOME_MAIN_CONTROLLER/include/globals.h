@@ -1,19 +1,21 @@
 #ifndef GLOBALS_H
 #define GLOBALS_H
 
-#include <stdint.h>  // Ensure standard integer types are available
-#include <stdbool.h> // Ensure boolean type is available
+#include <stdint.h>
+#include <stdbool.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-// Declare global variables
 extern float temperature;
 extern float humidity;
-extern uint16_t lux;  // Ensure this matches the definition elsewhere
+extern uint16_t lux;
 extern bool heater;
 extern bool dehumidifier;
+
+extern int client_sock;
+extern bool handshake_done;
 
 #ifdef __cplusplus
 }
