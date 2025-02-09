@@ -1,7 +1,9 @@
 #ifndef HTTP_SERVER_H
 #define HTTP_SERVER_H
 
-// Function declaration to start HTTP server
+#include "esp_http_server.h"
+
+esp_err_t setpoints_handler(httpd_req_t *req);
 void start_http_server(void);
 
 #endif // HTTP_SERVER_H

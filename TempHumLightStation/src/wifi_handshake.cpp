@@ -1,11 +1,15 @@
 #include "../include/wifi_tcp.h"
 #include "../include/globals.h"
+#include "../include/helpers.h"
+#include "../include/wifi_handshake.h"
+#include <SoftwareSerial.h>
 
 extern SoftwareSerial espSerial;
 extern bool serialBusy;
 extern bool connected;
 extern bool handshake_done;
 extern String latestResponse;
+extern String accumulatedResponse;
 
 void performHandshake() {
     handshake_done = false;
@@ -28,26 +32,13 @@ void performHandshake() {
             delay(2000); // Wait for ESP32 to respond
             if (espSerial.find("SEND OK")) {
                 latestResponse = espSerial.readStringUntil('\n');
-                Serial.print("Received from ESP32: "); // Debugging statement
-                Serial.println(latestResponse); // Debugging statement
                 if (latestResponse.indexOf("HANDSHAKE:ESP32_READY\n") >= 0) {
                     handshake_done = true;
-                    Serial.println("Handshake successful");
-                } else {
-                    Serial.println("Unexpected response: " + latestResponse);
                 }
-            } else {
-                Serial.println("Failed to send handshake message");
             }
-        } else {
-            Serial.println("No response from ESP32");
         }
         serialBusy = false;
         handshakeRetries++;
-    }
-
-    if (!handshake_done) {
-        Serial.println("Failed to perform handshake after retries");
     }
 }
 
@@ -60,10 +51,6 @@ void sendTCPMessage(const char* message) {
     }
 
     if (!connected || !handshake_done) {
-        Serial.print("Not sending message. Connected: ");
-        Serial.print(connected);
-        Serial.print(", Handshake done: ");
-        Serial.println(handshake_done);
         return;
     }
 
@@ -87,18 +74,60 @@ void sendTCPMessage(const char* message) {
                 if (latestResponse.indexOf("ACK\n") >= 0) {
                     ackReceived = true;
                 } else if (latestResponse.indexOf("ERROR:HANDSHAKE_FAILED\n") >= 0) {
-                    Serial.println("Handshake failed, retrying...");
                     performHandshake();
-                } else {
-                    Serial.println("Unexpected response: " + latestResponse);
                 }
             }
         }
         serialBusy = false;
         retries++;
     }
+}
 
-    if (!ackReceived) {
-        Serial.println("Failed to send message after retries");
+void receiveTCPMessage() {
+    while (serialBusy);
+    serialBusy = true;
+    if (espSerial.available()) {
+        latestResponse = espSerial.readStringUntil('\n');
+        serialBusy = false;
+
+        // Debugging statement to print the latest response
+        Serial.print("Latest response: ");
+        Serial.println(latestResponse);
+
+        // Check if the response contains setpoint data
+        if (latestResponse.startsWith("+IPD")) {
+            accumulatedResponse += latestResponse.substring(latestResponse.indexOf(":") + 1);
+
+            // Debugging statement to print the accumulated response
+            Serial.print("Accumulated response: ");
+            Serial.println(accumulatedResponse);
+
+            if (accumulatedResponse.indexOf("temp=") >= 0 && accumulatedResponse.indexOf("&humidity=") >= 0) {
+                // Handle the setpoint data
+                handleSetpoints(accumulatedResponse);
+
+                // Clear the accumulated response after processing
+                accumulatedResponse = "";
+
+                // Acknowledge the receipt of setpoint data
+                while (serialBusy);
+                serialBusy = true;
+                espSerial.print("AT+CIPSEND=");
+                espSerial.println(14); // Length of "SETPOINTS_ACK\n"
+                delay(1000);
+                if (espSerial.find('>')) {
+                    espSerial.print("SETPOINTS_ACK\n");
+                    delay(1000);
+                    espSerial.find("SEND OK");
+                }
+                serialBusy = false;
+            }
+        } else {
+            // Ignore corrupted or irrelevant data
+            Serial.println("Ignoring irrelevant data.");
+            accumulatedResponse = ""; // Clear accumulated response to avoid mixing data
+        }
+    } else {
+        serialBusy = false;
     }
 }

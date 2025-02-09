@@ -27,6 +27,7 @@ void connectToWiFi();
 void connectToServer();
 void performHandshake();
 void sendTCPMessage(const char* message);
+void receiveTCPMessage(); // Ensure this line is present
 bool checkConnection();
 bool sendATCommand(const char* command, unsigned long timeout);
 String getResponse();

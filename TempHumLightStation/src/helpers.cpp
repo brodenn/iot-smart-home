@@ -1,5 +1,6 @@
 #include "../include/helpers.h"
 #include "../include/automation.h"
+#include <Arduino.h>
 
 void handleSetpoints(const String& data) {
     // Check if the data contains valid setpoints
@@ -23,7 +24,19 @@ void handleSetpoints(const String& data) {
 
                 // Update setpoints
                 Automation_SetSetpoints(tempInt, humInt);
+
+                // Debugging statements
+                Serial.print("Set Temperature: ");
+                Serial.println(tempInt / 100.0);
+                Serial.print("Set Humidity: ");
+                Serial.println(humInt / 100.0);
+            } else {
+                Serial.println("Invalid setpoint values: " + tempStr + ", " + humStr); // Debugging statement
             }
+        } else {
+            Serial.println("Invalid setpoint format: " + data); // Debugging statement
         }
+    } else {
+        Serial.println("Invalid setpoint data: " + data); // Debugging statement
     }
 }
