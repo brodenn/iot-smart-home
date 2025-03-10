@@ -17,6 +17,9 @@ extern bool dehumidifier;
 extern int client_sock;
 extern bool handshake_done;
 
+extern int16_t SP_TEMP; // Declare the external variables
+extern int16_t SP_HUM;
+
 #ifdef __cplusplus
 }
 #endif

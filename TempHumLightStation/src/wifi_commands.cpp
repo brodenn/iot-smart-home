@@ -1,109 +1,202 @@
-#include "../include/wifi_tcp.h"
+/**
+ * @file wifi_commands.cpp
+ * @brief This file contains the implementation of Wi-Fi command functions for the ESP8266 module.
+ *
+ * The functions provided in this file allow for resetting the ESP8266, connecting to a Wi-Fi network,
+ * sending AT commands with retries, and checking the Wi-Fi connection status.
+ *
+ * The main functionalities provided by this file include:
+ * - Resetting the ESP8266 module.
+ * - Connecting to a Wi-Fi network.
+ * - Sending AT commands with retries.
+ * - Checking the Wi-Fi connection status.
+ * - Enabling command echo on the ESP8266.
+ *
+ * Dependencies:
+ * - wifi_commands.h: Header file containing the declarations of the Wi-Fi command functions.
+ * - globals.h: Header file containing the declarations of global variables.
+ * - helpers.h: Header file containing the declarations of helper functions.
+ * - Arduino.h: Arduino core functions.
+ * - SoftwareSerial.h: Library for software-based serial communication.
+ *
+ * @note This file is part of the TempHumLightStation project.
+ */
+
+#include "../include/wifi_commands.h"
 #include "../include/globals.h"
+#include "../include/helpers.h"
+#include <Arduino.h>
+#include <SoftwareSerial.h>
 
 extern SoftwareSerial espSerial;
 extern bool serialBusy;
 extern bool connected;
-extern String latestResponse;
-extern bool handshake_done;
 
+/**
+ * @brief Resets the ESP8266 and ensures it's ready before continuing.
+ *
+ * This function sends the reset command to the ESP8266, waits for it to reset, and then checks if it is ready.
+ * If the ESP8266 is not connected to Wi-Fi, it attempts to connect.
+ */
 void resetESP8266() {
     while (serialBusy);
     serialBusy = true;
+
     espSerial.println("AT+RST");
-    delay(5000);
-    printESPResponse();
+    delay(3000);  // Allow ESP8266 to reset
+    clearESPBuffer();
+
+    char response[64];
+    getResponse(response, sizeof(response));
+
+    if (!strstr(response, "OK")) {
+        serialBusy = false;
+        return;
+    }
+
+    sendATCommand("ATE1", 2000);  // Enable Echo
+
+    if (!checkWiFiConnection()) {
+        connectToWiFi();
+    }
+
     serialBusy = false;
 }
 
-void setWiFiMode() {
+/**
+ * @brief Connects to Wi-Fi (only if necessary).
+ *
+ * This function checks if the ESP8266 is already connected to a Wi-Fi network. If not, it sends the SSID and password
+ * to connect to the specified Wi-Fi network.
+ *
+ * @return True if connected, false otherwise.
+ */
+bool connectToWiFi() {
     while (serialBusy);
     serialBusy = true;
-    espSerial.println("AT+CWMODE=1");
-    delay(2000);
-    printESPResponse();
+
+    clearESPBuffer();
+    espSerial.println("AT+CWJAP?");
+    delay(2000);  // Increased time to allow response
+
+    char response[128];
+    getResponse(response, sizeof(response));
+
+    // Detect active connection using SSID pattern
+    if (strstr(response, "+CWJAP:")) {  
+        serialBusy = false;
+        return true;  // Already connected
+    }
+
+    // If not connected, send SSID & Password
+    clearESPBuffer();
+    espSerial.print("AT+CWJAP=\"");
+    espSerial.print(ssid);
+    espSerial.print("\",\"");
+    espSerial.print(password);
+    espSerial.println("\"");
+
+    delay(10000);  // Increased time for first connection attempt
+
+    getResponse(response, sizeof(response));
+
     serialBusy = false;
+    return (strstr(response, "WIFI CONNECTED") != NULL);
 }
 
-void connectToWiFi() {
-    while (serialBusy);
-    serialBusy = true;
-    String command = "AT+CWJAP=\"" + String(ssid) + "\",\"" + String(password) + "\"";
-    espSerial.println(command);
-    delay(10000);
-    printESPResponse();
-    serialBusy = false;
-}
+/**
+ * @brief Executes AT commands with retries.
+ *
+ * This function sends an AT command to the ESP8266 and waits for a response. If the response indicates that the ESP8266
+ * is busy, it retries the command up to three times. If the command fails, it resets the ESP8266.
+ *
+ * @param command The AT command to send.
+ * @param timeout The timeout period in milliseconds.
+ * @return True if the command is successful, false otherwise.
+ */
+bool sendATCommand(const char* command, unsigned long timeout) {
+    int retries = 0;
+    char response[64];
 
-void connectToServer() {
-    for (int i = 0; i < 3; i++) { // Retry up to 3 times
+    while (retries < 3) {
         while (serialBusy);
         serialBusy = true;
-        String command = "AT+CIPSTART=\"TCP\",\"" + String(serverIP) + "\"," + String(serverPort);
+
+        if (!waitForESPReady(5000)) {
+            serialBusy = false;
+            return false;
+        }
+
+        clearESPBuffer();
         espSerial.println(command);
-        delay(5000); // Decreased delay to give more time for connection
-        printESPResponse();
+        delay(timeout);
+        getResponse(response, sizeof(response));
+
+        if (strstr(response, "busy")) {
+            delay(2000);
+            retries++;
+            serialBusy = false;
+            continue;
+        }
+
         serialBusy = false;
-        if (checkConnection()) {
-            connected = true;
-            return;
-        }
+        return true;
     }
-    connected = false;
+
+    resetESP8266();
+    return false;
 }
 
-bool checkConnection() {
+/**
+ * @brief Waits for the ESP8266 to be ready.
+ *
+ * This function sends the "AT" command to the ESP8266 and waits for an "OK" response within the specified timeout period.
+ *
+ * @param timeout The timeout period in milliseconds.
+ * @return True if the ESP8266 is ready, false otherwise.
+ */
+bool waitForESPReady(unsigned long timeout) {
+    unsigned long startMillis = millis();
+    char response[64];
+
+    while (millis() - startMillis < timeout) {
+        clearESPBuffer();
+        espSerial.println("AT");
+        delay(1000);
+        getResponse(response, sizeof(response));
+
+        if (strstr(response, "OK")) {
+            return true;
+        }
+    }
+    return false;
+}
+
+/**
+ * @brief Checks the Wi-Fi connection status based on the AT+CWJAP? response.
+ *
+ * This function sends the "AT+CWJAP?" command to the ESP8266 and checks if it is connected to a Wi-Fi network.
+ *
+ * @return True if connected, false otherwise.
+ */
+bool checkWiFiConnection() {
     while (serialBusy);
     serialBusy = true;
-    espSerial.println("AT+CIPSTATUS");
-    delay(2000);
-    getResponse(); // Update latestResponse
+
+    sendATCommand("AT+CWJAP?", 2000);
+
+    char response[128];
+    getResponse(response, sizeof(response));
+
     serialBusy = false;
-    return latestResponse.indexOf("STATUS:3") >= 0; // STATUS:3 indicates active TCP connection
+    return (strstr(response, "+CWJAP:") != NULL);
 }
 
-bool sendATCommand(const char* command, unsigned long timeout) {
-    while (serialBusy);
-    serialBusy = true;
-    espSerial.println(command);
-    delay(timeout);
-    printESPResponse();
-    serialBusy = false;
-    return true;
-}
-
-String getResponse() {
-    String response = "";
-    while (espSerial.available()) {
-        char c = (char)espSerial.read();
-        response += c;
-        Serial.print(c); // Debugging statement to print each character
-    }
-
-    // Check for +IPD message and read the subsequent data
-    if (response.indexOf("+IPD") >= 0) {
-        int dataLengthStart = response.indexOf(":") + 1;
-        int dataLengthEnd = response.indexOf(",", dataLengthStart);
-        int dataLength = response.substring(dataLengthStart, dataLengthEnd).toInt();
-        while (dataLength > 0 && espSerial.available()) {
-            char c = (char)espSerial.read();
-            response += c;
-            Serial.print(c); // Debugging statement to print each character
-            dataLength--;
-        }
-        // Confirm handshake if ESP32_READY is received
-        if (response.indexOf("ESP32_READY") >= 0) {
-            handshake_done = true;
-            Serial.println("Handshake confirmed."); // Debugging statement
-        }
-    }
-
-    latestResponse = response; // Store the latest response
-    Serial.println(response); // Debugging statement
-    return response;
-}
-
-void printESPResponse() {
-    String response = getResponse();
-    Serial.println(response);
+/**
+ * @brief Enables command echo on the ESP8266.
+ *
+ * This function sends the "ATE1" command to the ESP8266 to enable command echo.
+ */
+void enableEcho() {
+    sendATCommand("ATE1", 1000);
 }

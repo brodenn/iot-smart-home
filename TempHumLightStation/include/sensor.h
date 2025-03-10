@@ -14,7 +14,7 @@ uint16_t ADC_Read(uint8_t channel);
 uint16_t LightSensor_ReadLux(void);
 
 // -------- Si7021 Sensor Functions --------
-// Read temperature as an integer in hundredths of a degree (e.g., 2514 = 25.14°C)
+// Read temperature as an integer in hundredths of a degree (e.g., 2514 = 25.14degC)
 int16_t Si7021_ReadTemperature(void);
 
 // Read humidity as an integer in hundredths of a percent (e.g., 3571 = 35.71%RH)

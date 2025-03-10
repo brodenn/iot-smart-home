@@ -1,6 +1,26 @@
+/**
+ * @file sensor.cpp
+ * @brief This file contains the implementation of sensor functions for the TempHumLightStation project.
+ *
+ * The functions provided in this file allow for initializing and reading data from the light sensor (using ADC)
+ * and the Si7021 temperature and humidity sensor (using I2C).
+ *
+ * The main functionalities provided by this file include:
+ * - Initializing the ADC for reading the light sensor.
+ * - Reading the light sensor data and converting it to lux.
+ * - Reading temperature and humidity data from the Si7021 sensor.
+ *
+ * Dependencies:
+ * - sensor.h: Header file containing the declarations of the sensor functions.
+ * - i2c.h: Header file containing the declarations of I2C functions.
+ * - avr/io.h: AVR device-specific IO definitions.
+ * - util/delay.h: Utility functions for delay.
+ *
+ * @note This file is part of the TempHumLightStation project.
+ */
+
 #define F_CPU 16000000UL
 #include "../include/sensor.h"
-#include "../include/uart.h"
 #include "../include/i2c.h"
 #include <avr/io.h>
 #include <util/delay.h>
@@ -15,13 +35,25 @@
 
 // -------- ADC Functions --------
 
-// Initialize the ADC for reading the light sensor
+/**
+ * @brief Initializes the ADC for reading the light sensor.
+ *
+ * This function configures the ADC to use AVCC as the reference voltage and sets the prescaler to 8.
+ */
 void ADC_Init() {
     // Configure ADC: AVCC as reference, right-adjusted result
     ADMUX = (1 << REFS0); // Reference voltage = AVCC
     ADCSRA = (1 << ADEN) | (1 << ADPS1) | (1 << ADPS0); // Enable ADC and set prescaler to 8
 }
 
+/**
+ * @brief Reads the ADC value from the specified channel.
+ *
+ * This function selects the specified ADC channel, starts the conversion, and waits for it to complete.
+ *
+ * @param channel The ADC channel to read from.
+ * @return The ADC value read from the specified channel.
+ */
 uint16_t ADC_Read(uint8_t channel) {
     // Select ADC channel
     ADMUX = (ADMUX & 0xF0) | (channel & 0x0F);
@@ -36,6 +68,13 @@ uint16_t ADC_Read(uint8_t channel) {
     return ADC;
 }
 
+/**
+ * @brief Reads the light sensor data and converts it to lux.
+ *
+ * This function reads the ADC value from the light sensor, converts it to voltage, and then calculates the lux value.
+ *
+ * @return The light intensity in lux.
+ */
 uint16_t LightSensor_ReadLux() {
     uint16_t adcValue = ADC_Read(1); // Read from channel A1
 
@@ -50,6 +89,14 @@ uint16_t LightSensor_ReadLux() {
 
 // -------- Si7021 Functions --------
 
+/**
+ * @brief Reads the temperature from the Si7021 sensor.
+ *
+ * This function sends the temperature measurement command to the Si7021 sensor, reads the raw temperature data,
+ * and converts it to hundredths of a degree Celsius.
+ *
+ * @return The temperature in hundredths of a degree Celsius.
+ */
 int16_t Si7021_ReadTemperature() {
     uint8_t msb, lsb;
     uint16_t rawTemp;
@@ -73,6 +120,14 @@ int16_t Si7021_ReadTemperature() {
     return ((17572L * rawTemp) / 65536L) - 4685;
 }
 
+/**
+ * @brief Reads the humidity from the Si7021 sensor.
+ *
+ * This function sends the humidity measurement command to the Si7021 sensor, reads the raw humidity data,
+ * and converts it to hundredths of a percent relative humidity.
+ *
+ * @return The humidity in hundredths of a percent relative humidity.
+ */
 int16_t Si7021_ReadHumidity() {
     uint8_t msb, lsb;
     uint16_t rawHum;

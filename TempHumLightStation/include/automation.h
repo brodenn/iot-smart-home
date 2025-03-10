@@ -3,7 +3,10 @@
 
 #include <stdint.h>
 
-// Function prototypes
+// Declare setpoint variables as extern
+extern int16_t SP_TEMP;
+extern int16_t SP_HUM;
+
 void Automation_Init(void);
 void Automation_Update(int16_t temperature, int16_t humidity);
 uint8_t GetHeaterState(void);

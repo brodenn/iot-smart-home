@@ -1,3 +1,30 @@
+/**
+ * @file tcp_server.c
+ * @brief This file contains the implementation of the TCP server and related functions for the ESP32 module.
+ *
+ * The functions provided in this file allow for initializing and running a TCP server, handling incoming TCP connections,
+ * sending and receiving TCP messages, and controlling devices such as the heater and humidifier via HTTP requests.
+ *
+ * The main functionalities provided by this file include:
+ * - Initializing and running a TCP server.
+ * - Handling incoming TCP connections and messages.
+ * - Sending and receiving TCP messages.
+ * - Controlling devices via HTTP requests.
+ *
+ * Dependencies:
+ * - esp_log.h: ESP32 logging functions.
+ * - esp_http_client.h: ESP32 HTTP client functions.
+ * - cJSON.h: JSON parsing library.
+ * - wifi.h: Wi-Fi initialization and event handling functions.
+ * - json_parser.h: JSON parsing helper functions.
+ * - globals.h: Global variables and definitions.
+ * - handshake.h: Handshake functions.
+ * - tcp_server.h: TCP server function declarations.
+ * - shelly_control.h: Shelly device control functions.
+ *
+ * @note This file is part of the ESP32 Smart Home Main Controller project.
+ */
+
 #include <stdio.h>
 #include <string.h>
 #include <sys/socket.h>
@@ -19,9 +46,27 @@
 #define PORT 8080
 static const char *TAG = "TCP_SERVER";
 
-const char* heaterIP = "192.168.10.199"; // IP address of your heater Shelly Plus Plug S
-const char* humidifierIP = "192.168.10.201"; // IP address of your humidifier Shelly Plus Plug S
+const char* heaterIP = "192.168.10.199";
+const char* humidifierIP = "192.168.10.201";
 
+/**
+ * @brief Sanitizes input by removing newlines, carriage returns, and trailing curly brackets.
+ *
+ * @param input The input string to sanitize.
+ */
+void sanitize_input(char *input) {
+    size_t len = strlen(input);
+    while (len > 0 && (input[len - 1] == '\n' || input[len - 1] == '\r' || input[len - 1] == '}')) {
+        input[--len] = '\0'; 
+    }
+}
+
+/**
+ * @brief Sends an HTTP request to control the heater or humidifier.
+ *
+ * @param deviceIP The IP address of the device to control.
+ * @param turnOn True to turn on the device, false to turn it off.
+ */
 void send_http_request(const char* deviceIP, bool turnOn) {
     char url[128];
     snprintf(url, sizeof(url), "http://%s/rpc/Switch.Set?id=0&on=%s", deviceIP, turnOn ? "true" : "false");
@@ -33,43 +78,45 @@ void send_http_request(const char* deviceIP, bool turnOn) {
 
     esp_http_client_handle_t client = esp_http_client_init(&config);
     esp_err_t err = esp_http_client_perform(client);
+    esp_http_client_cleanup(client);
 
     if (err == ESP_OK) {
-        ESP_LOGI(TAG, "HTTP GET Status = %d, content_length = %lld",
-                 esp_http_client_get_status_code(client),
-                 esp_http_client_get_content_length(client));
+        ESP_LOGI(TAG, "✅ HTTP GET successful: %s", url);
     } else {
-        ESP_LOGE(TAG, "HTTP GET request failed: %s", esp_err_to_name(err));
+        ESP_LOGE(TAG, "❌ HTTP GET failed: %s", esp_err_to_name(err));
     }
-
-    esp_http_client_cleanup(client);
 }
 
+/**
+ * @brief Sends a TCP message ensuring all bytes are sent.
+ *
+ * @param message The message to send.
+ */
 void send_tcp_message(const char *message) {
-    if (client_sock < 0) {
-        ESP_LOGE(TAG, "No client connected");
-        return;
-    }
+    if (client_sock < 0) return;
 
-    int len = strlen(message);
-    int to_write = len;
+    int to_write = strlen(message);
     while (to_write > 0) {
-        int written = send(client_sock, message + (len - to_write), to_write, 0);
+        int written = send(client_sock, message + (strlen(message) - to_write), to_write, 0);
         if (written < 0) {
-            ESP_LOGE(TAG, "Send failed: errno %d", errno);
-            break;
+            ESP_LOGE(TAG, "❌ Send failed: errno %d", errno);
+            return;
         }
         to_write -= written;
     }
-    ESP_LOGI(TAG, "Sent message: %s", message);
 }
 
-void send_tcp_message_with_ack(const char *message) {
+/**
+ * @brief Sends a TCP message and waits for acknowledgment.
+ *
+ * @param message The message to send.
+ * @param ackReceived Pointer to a boolean that will be set to true if acknowledgment is received.
+ */
+void send_tcp_message_with_ack(const char *message, bool *ackReceived) {
     const int maxRetries = 3;
-    int retries = 0;
-    bool ackReceived = false;
+    *ackReceived = false;
 
-    while (retries < maxRetries && !ackReceived) {
+    for (int retries = 0; retries < maxRetries; retries++) {
         send_tcp_message(message);
 
         char ack_buffer[32];
@@ -77,22 +124,148 @@ void send_tcp_message_with_ack(const char *message) {
         if (ack_len > 0) {
             ack_buffer[ack_len] = '\0';
             if (strncmp(ack_buffer, "ACK\n", 4) == 0) {
-                ackReceived = true;
-                ESP_LOGI(TAG, "Acknowledgment received");
-            } else {
-                ESP_LOGE(TAG, "Unexpected response: %s", ack_buffer);
+                *ackReceived = true;
+                return;
             }
-        } else {
-            ESP_LOGE(TAG, "Failed to receive acknowledgment. Retrying...");
         }
-        retries++;
-    }
-
-    if (!ackReceived) {
-        ESP_LOGE(TAG, "Failed to receive acknowledgment after retries");
+        vTaskDelay(pdMS_TO_TICKS(500));
     }
 }
 
+/**
+ * @brief Handles received JSON data.
+ *
+ * @param data The received JSON data.
+ */
+void handle_received_data(const char* data) {
+    static char json_buffer[512] = {0};  
+    static size_t json_index = 0;
+
+    size_t data_len = strlen(data);
+    if (json_index + data_len >= sizeof(json_buffer)) {
+        ESP_LOGE(TAG, "⚠️ JSON buffer overflow! Resetting.");
+        json_index = 0;
+    }
+
+    strncat(json_buffer, data, sizeof(json_buffer) - json_index - 1);
+    json_index += data_len;
+
+    // Check if complete JSON is received
+    if (json_buffer[0] != '{' || json_buffer[json_index - 1] != '}') {
+        ESP_LOGW(TAG, "⚠️ Waiting for full JSON...");
+        return;
+    }
+
+    ESP_LOGI(TAG, "📥 Full JSON received: %s", json_buffer);
+
+    cJSON *json = cJSON_Parse(json_buffer);
+    if (!json) {
+        ESP_LOGE(TAG, "❌ JSON parsing failed!");
+        json_index = 0;
+        return;
+    }
+
+    json_index = 0;
+
+    cJSON *temp = cJSON_GetObjectItem(json, "temperature");
+    cJSON *hum = cJSON_GetObjectItem(json, "humidity");
+    cJSON *lux = cJSON_GetObjectItem(json, "lux");
+    cJSON *heater = cJSON_GetObjectItem(json, "heater");
+    cJSON *dehumidifier = cJSON_GetObjectItem(json, "dehumidifier");
+
+    if (cJSON_IsNumber(temp) && cJSON_IsNumber(hum) &&
+        cJSON_IsNumber(lux) && cJSON_IsBool(heater) && cJSON_IsBool(dehumidifier)) {
+        
+        temperature = temp->valuedouble;
+        humidity = hum->valuedouble;
+        lux = lux->valueint;
+
+        ESP_LOGI(TAG, "🌡 Temp: %.2f°C, 💧 Humidity: %.2f%%, ☀️ Lux: %d, 🔥 Heater: %s, ❄️ Dehumidifier: %s",
+                 temperature, humidity, lux,
+                 heater->valueint ? "ON" : "OFF",
+                 dehumidifier->valueint ? "ON" : "OFF");
+
+        send_http_request(heaterIP, heater->valueint);
+        send_http_request(humidifierIP, dehumidifier->valueint);
+    }
+
+    cJSON_Delete(json);
+}
+
+/**
+ * @brief TCP Server Task.
+ *
+ * This function initializes and runs the TCP server, handling incoming connections and messages.
+ *
+ * @param pvParameters Task parameters (not used).
+ */
+void tcp_server_task(void *pvParameters) {
+    struct sockaddr_in server_addr = {
+        .sin_addr.s_addr = htonl(INADDR_ANY),
+        .sin_family = AF_INET,
+        .sin_port = htons(PORT),
+    };
+
+    int listen_sock = socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
+    if (listen_sock < 0) {
+        ESP_LOGE(TAG, "❌ Unable to create socket: errno %d", errno);
+        vTaskDelete(NULL);
+    }
+    ESP_LOGI(TAG, "✅ Socket created");
+
+    if (bind(listen_sock, (struct sockaddr *)&server_addr, sizeof(server_addr)) != 0) {
+        ESP_LOGE(TAG, "❌ Bind failed: errno %d", errno);
+        close(listen_sock);
+        vTaskDelete(NULL);
+    }
+
+    if (listen(listen_sock, 1) != 0) {
+        ESP_LOGE(TAG, "❌ Listen failed: errno %d", errno);
+        close(listen_sock);
+        vTaskDelete(NULL);
+    }
+    ESP_LOGI(TAG, "🎧 Listening on port %d", PORT);
+
+    while (1) {
+        struct sockaddr_in client_addr;
+        socklen_t addr_len = sizeof(client_addr);
+        client_sock = accept(listen_sock, (struct sockaddr *)&client_addr, &addr_len);
+        if (client_sock < 0) {
+            ESP_LOGE(TAG, "❌ Accept failed: errno %d", errno);
+            continue;
+        }
+        ESP_LOGI(TAG, "✅ Client connected");
+        performHandshake();
+
+        char rx_buffer[128];
+        while (1) {
+            int len = recv(client_sock, rx_buffer, sizeof(rx_buffer) - 1, 0);
+            if (len <= 0) break;
+
+            rx_buffer[len] = '\0';
+            sanitize_input(rx_buffer);
+
+            if (strncmp(rx_buffer, "DATA:", 5) == 0) {
+                handle_received_data(rx_buffer + 5);
+                send_tcp_message("ACK\n");
+            }
+        }
+
+        close(client_sock);
+        client_sock = -1;
+    }
+
+    close(listen_sock);
+    vTaskDelete(NULL);
+}
+
+/**
+ * @brief Sends setpoints with acknowledgment.
+ *
+ * This function sends setpoints to the client and waits for acknowledgment.
+ *
+ * @param setpoints The setpoints to send.
+ */
 void send_setpoints_with_ack(const char *setpoints) {
     const int maxRetries = 5;
     int retries = 0;
@@ -122,6 +295,13 @@ void send_setpoints_with_ack(const char *setpoints) {
     }
 }
 
+/**
+ * @brief Sends data to the web server.
+ *
+ * This function sends data to the web server via an HTTP POST request.
+ *
+ * @param data The data to send.
+ */
 void send_data_to_web_server(const char* data) {
     esp_http_client_config_t config = {
         .url = "http://192.168.10.206/update", // Replace with your actual web server URL or IP address
@@ -142,148 +322,4 @@ void send_data_to_web_server(const char* data) {
     }
 
     esp_http_client_cleanup(client);
-}
-
-void handle_received_data(const char* data) {
-    cJSON *json = cJSON_Parse(data);
-    if (json == NULL) {
-        ESP_LOGE(TAG, "Failed to parse JSON");
-        return;
-    }
-
-    cJSON *temperature_item = cJSON_GetObjectItem(json, "temperature");
-    cJSON *humidity_item = cJSON_GetObjectItem(json, "humidity");
-    cJSON *lux_item = cJSON_GetObjectItem(json, "lux");
-    cJSON *heater_item = cJSON_GetObjectItem(json, "heater");
-    cJSON *dehumidifier_item = cJSON_GetObjectItem(json, "dehumidifier");
-
-    if (cJSON_IsNumber(temperature_item) && cJSON_IsNumber(humidity_item) && cJSON_IsNumber(lux_item) && cJSON_IsBool(heater_item) && cJSON_IsBool(dehumidifier_item)) {
-        temperature = temperature_item->valuedouble;
-        humidity = humidity_item->valuedouble;
-        lux = lux_item->valueint;
-        heater = heater_item->valueint;
-        dehumidifier = dehumidifier_item->valueint;
-
-        ESP_LOGI(TAG, "Parsed data: temperature=%.2f, humidity=%.2f, lux=%d, heater=%s, dehumidifier=%s",
-                 temperature, humidity, lux,
-                 heater ? "true" : "false",
-                 dehumidifier ? "true" : "false");
-
-        // Control Shelly devices based on the parsed data
-        send_http_request(heaterIP, heater);
-        send_http_request(humidifierIP, dehumidifier);
-
-        // Update web server with the data
-        char web_server_message[256];
-        snprintf(web_server_message, sizeof(web_server_message), 
-                 "{\"temperature\":%.2f,\"humidity\":%.2f,\"lux\":%d,\"heater\":%s,\"dehumidifier\":%s}",
-                 temperature, humidity, lux,
-                 heater ? "true" : "false",
-                 dehumidifier ? "true" : "false");
-        send_data_to_web_server(web_server_message);
-    } else {
-        ESP_LOGE(TAG, "Invalid data format");
-    }
-
-    cJSON_Delete(json);
-}
-
-// Function to initialize the TCP server
-void tcp_server_task(void *pvParameters) {
-    char addr_str[128];
-    int addr_family = AF_INET;
-    int ip_protocol = IPPROTO_IP;
-
-    struct sockaddr_in server_addr;
-    server_addr.sin_addr.s_addr = htonl(INADDR_ANY);
-    server_addr.sin_family = addr_family;
-    server_addr.sin_port = htons(PORT);
-
-    int listen_sock = socket(addr_family, SOCK_STREAM, ip_protocol);
-    if (listen_sock < 0) {
-        ESP_LOGE(TAG, "Unable to create socket: errno %d", errno);
-        vTaskDelete(NULL);
-        return;
-    }
-    ESP_LOGI(TAG, "Socket created");
-
-    int err = bind(listen_sock, (struct sockaddr *)&server_addr, sizeof(server_addr));
-    if (err != 0) {
-        ESP_LOGE(TAG, "Socket unable to bind: errno %d", errno);
-        close(listen_sock);
-        vTaskDelete(NULL);
-        return;
-    }
-    ESP_LOGI(TAG, "Socket bound, port %d", PORT);
-
-    err = listen(listen_sock, 1);
-    if (err != 0) {
-        ESP_LOGE(TAG, "Error occurred during listen: errno %d", errno);
-        close(listen_sock);
-        vTaskDelete(NULL);
-        return;
-    }
-    ESP_LOGI(TAG, "Socket listening");
-
-    while (1) {
-        ESP_LOGI(TAG, "Waiting for a connection...");
-        struct sockaddr_in client_addr;
-        socklen_t addr_len = sizeof(client_addr);
-        client_sock = accept(listen_sock, (struct sockaddr *)&client_addr, &addr_len);
-        if (client_sock < 0) {
-            ESP_LOGE(TAG, "Unable to accept connection: errno %d", errno);
-            break;
-        }
-
-        inet_ntoa_r(client_addr.sin_addr, addr_str, sizeof(addr_str) - 1);
-        ESP_LOGI(TAG, "Client connected: %s", addr_str);
-
-        performHandshake();
-
-        char rx_buffer[128];
-        while (1) {
-            int len = recv(client_sock, rx_buffer, sizeof(rx_buffer) - 1, 0);
-            if (len < 0) {
-                ESP_LOGE(TAG, "Receive failed: errno %d", errno);
-                break;
-            } else if (len == 0) {
-                ESP_LOGI(TAG, "Client disconnected");
-                break;
-            }
-
-            rx_buffer[len] = '\0';
-            ESP_LOGI(TAG, "Received: %s", rx_buffer);
-
-            // Check if the message is a data message
-            if (strncmp(rx_buffer, "DATA:", 5) == 0) {
-                ESP_LOGI(TAG, "Received data: %s", rx_buffer + 5);
-                handle_received_data(rx_buffer + 5);
-                // Send acknowledgment
-                send_tcp_message("ACK\n");
-            } else if (strncmp(rx_buffer, "HANDSHAKE:", 10) == 0) {
-                ESP_LOGI(TAG, "Received handshake message: %s", rx_buffer);
-                if (strncmp(rx_buffer, "HANDSHAKE:ARDUINO_READY\n", 24) == 0) {
-                    ESP_LOGI(TAG, "Handshake received from Arduino. Sending response...");
-                    send_tcp_message("HANDSHAKE:ESP32_READY\n");
-                    handshake_done = true;
-                } else {
-                    ESP_LOGE(TAG, "Unexpected handshake message: %s", rx_buffer);
-                    send_tcp_message("ERROR:HANDSHAKE_FAILED\n");
-                }
-            } else if (strncmp(rx_buffer, "SETPOINTS_ACK\n", 14) == 0) {
-                ESP_LOGI(TAG, "Setpoints acknowledgment received from Arduino");
-            } else {
-                ESP_LOGE(TAG, "Unexpected message: %s", rx_buffer);
-                send_tcp_message("ERROR:UNEXPECTED_MESSAGE\n");
-            }
-        }
-
-        close(client_sock);
-        client_sock = -1;
-        handshake_done = false;
-        ESP_LOGI(TAG, "Client connection closed");
-    }
-
-    close(listen_sock);
-    vTaskDelete(NULL);
 }
