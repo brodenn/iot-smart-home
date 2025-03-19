@@ -28,10 +28,15 @@ String latestResponse = "";        ///< Stores the latest response received from
 String accumulatedResponse = "";   ///< Stores the accumulated responses from the ESP8266.
 
 // Wi-Fi Credentials
-const char* ssid = "TN_24GHz_F3908D";       ///< Wi-Fi SSID.
-const char* password = "UP7ADFCFXJ";        ///< Wi-Fi password.
+char ssid[32];       ///< Wi-Fi SSID.
+char password[32];   ///< Wi-Fi password.
 const char* serverIP = "192.168.10.206";    ///< Server IP address.
-const int serverPort = 8080;                ///< Server port number.
+const int serverPort = 8080;                ///< Server port number;
+
+// Sensor data
+int16_t globalTemperature = 0;      ///< Global variable to store the temperature reading.
+int16_t globalHumidity = 0;         ///< Global variable to store the humidity reading.
+uint16_t globalLight = 0;           ///< Global variable to store the light intensity reading;
 
 // Define SoftwareSerial for ESP8266 (avoids multiple definitions)
 SoftwareSerial espSerial(8, 9);  // RX=8, TX=9

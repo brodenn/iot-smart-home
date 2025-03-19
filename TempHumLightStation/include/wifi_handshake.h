@@ -45,12 +45,23 @@ bool isESP8266Ready();
 bool performHandshake();
 
 /**
- * @brief Receives and processes TCP messages from the server.
+ * @brief Attempts to perform a handshake with the ESP32 server.
  *
- * This function receives TCP messages from the server and processes them.
- * If the message contains setpoints, it updates the setpoints in the automation module.
+ * This function sends a handshake message to the ESP32 server and waits for a response.
+ * If the handshake is successful, it sets the handshake_done flag to true.
+ *
+ * @return True if the handshake is successful, false otherwise.
  */
-void receiveTCPMessage();
+bool attemptHandshake();
+
+/**
+ * @brief Waits for a handshake response from the ESP32 server.
+ *
+ * This function waits for a handshake response from the ESP32 server within a specified timeout period.
+ *
+ * @return True if the handshake response is received, false otherwise.
+ */
+bool waitForHandshakeResponse();
 
 /**
  * @brief Sends a TCP message to the server.
@@ -63,10 +74,28 @@ void receiveTCPMessage();
 void sendTCPMessage(const char* message);
 
 /**
- * @brief Prints the response from the ESP8266.
+ * @brief Attempts to send a TCP message to the server.
  *
- * This function fetches the response from the ESP8266 and stores it in the latestResponse variable.
+ * This function attempts to send a TCP message to the server and waits for an acknowledgment.
+ *
+ * @param fullMessage The full message to send.
+ * @return True if the message is acknowledged, false otherwise.
  */
-void printESPResponse();
+bool attemptSendMessage(const char* fullMessage);
+
+/**
+ * @brief Receives and processes TCP messages from the server.
+ *
+ * This function receives TCP messages from the server and processes them.
+ * If the message contains setpoints, it updates the setpoints in the automation module.
+ */
+void receiveTCPMessage();
+
+/**
+ * @brief Processes incoming TCP messages from the server.
+ *
+ * This function processes incoming TCP messages from the server and updates the setpoints if necessary.
+ */
+void processIncomingMessage();
 
 #endif // WIFI_HANDSHAKE_H

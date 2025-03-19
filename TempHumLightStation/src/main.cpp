@@ -44,23 +44,13 @@
  * initializes the Wi-Fi and TCP communication, and sets up the I2C and automation modules.
  */
 void setup() {
-    Serial.begin(9600);
-    delay(5000);  // Wait for serial communication to stabilize
-
-    espSerial.begin(9600);
-    delay(7000);  // Wait for ESP8266 to initialize
-
-    enableEcho();  // Enable echo on the ESP8266
-
-    // Read Setpoints from EEPROM
-    int16_t storedTemp = eeprom_read_word(EEPROM_TEMP_ADDR);
-    int16_t storedHum = eeprom_read_word(EEPROM_HUM_ADDR);
-    Automation_SetSetpoints(storedTemp, storedHum);
-
-    initializeWiFiAndTCP();  // Initialize Wi-Fi and perform handshake
-
-    ADC_Init();  // Initialize ADC
-    I2C_Init();  // Initialize I2C
+    initializeSerial();
+    initializeESP();
+    readSetpointsFromEEPROM();
+    readWiFiCredentialsFromEEPROM();
+    storeDefaultCredentialsIfNeeded();
+    initializeWiFiAndTCP();
+    initializeSensors();
     Automation_Init();  // Initialize automation system
 }
 
@@ -72,35 +62,10 @@ void setup() {
  * states based on sensor readings.
  */
 void loop() {
-    if (espSerial.available()) {
-        receiveTCPMessage();  // Handle incoming TCP messages
-    }
-
-    static unsigned long lastCheck = 0;
-    unsigned long currentMillis = millis();
-    if (currentMillis - lastCheck >= 30000) {  // Perform actions every 30 seconds
-        lastCheck = currentMillis;
-
-        if (!checkConnection()) {
-            connectToTCPServer();  // Reconnect to TCP server if connection is lost
-        }
-
-        if (!handshake_done) {
-            performHandshake();  // Perform handshake if not done
-        }
-
-        if (handshake_done) {
-            int16_t temperature = Si7021_ReadTemperature();  // Read temperature
-            int16_t humidity = Si7021_ReadHumidity();  // Read humidity
-            uint16_t light = LightSensor_ReadLux();  // Read light intensity
-
-            Automation_Update(temperature, humidity);  // Update automation states
-
-            // Use a buffer instead of `String`
-            char sensorData[128];
-            formatSensorData(sensorData, sizeof(sensorData), temperature, humidity, light);
-
-            sendTCPMessage(sensorData);  // Send sensor data to the server
-        }
-    }
+    handleIncomingMessages();
+    checkAndReconnectTCP();
+    performHandshakeIfNeeded();
+    readSensorData();
+    updateAutomationStates();
+    sendSensorData();
 }

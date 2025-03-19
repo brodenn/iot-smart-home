@@ -79,10 +79,10 @@ uint16_t LightSensor_ReadLux() {
     uint16_t adcValue = ADC_Read(1); // Read from channel A1
 
     // Convert ADC value to voltage
-    float voltage = (adcValue * 3.3) / 1023.0; // Assuming 3.3V reference voltage
+    float voltage = (adcValue * 5) / 1023.0; 
 
     // Calculate lux (adjust sensitivity based on ALS-PT19 datasheet)
-    uint16_t lux = (uint16_t)(voltage / 0.005); // Example sensitivity: 0.005 V/lux
+    uint16_t lux = (uint16_t)(voltage / 0.005);
 
     return lux;
 }

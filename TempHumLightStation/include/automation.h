@@ -37,12 +37,30 @@ extern int16_t SP_HUM;  ///< Humidity setpoint in hundredths of percent relative
 void Automation_Init(void);
 
 /**
+ * @brief Updates the state of the heater based on the current temperature.
+ *
+ * This function implements a simple thermostat logic with hysteresis to avoid frequent switching.
+ *
+ * @param temperature The current temperature reading (in tenths of degrees Celsius).
+ */
+void UpdateHeaterState(int16_t temperature);
+
+/**
+ * @brief Updates the state of the dehumidifier based on the current humidity.
+ *
+ * This function implements a simple humidity control logic with hysteresis to avoid frequent switching.
+ *
+ * @param humidity The current humidity reading (in tenths of percent relative humidity).
+ */
+void UpdateDehumidifierState(int16_t humidity);
+
+/**
  * @brief Updates the state of the heater and dehumidifier based on the current temperature and humidity.
  *
- * This function implements a simple thermostat and humidity control logic with hysteresis to avoid frequent switching.
+ * This function calls the individual update functions for the heater and dehumidifier.
  *
- * @param temperature The current temperature reading (in hundredths of degrees Celsius).
- * @param humidity The current humidity reading (in hundredths of percent relative humidity).
+ * @param temperature The current temperature reading (in tenths of degrees Celsius).
+ * @param humidity The current humidity reading (in tenths of percent relative humidity).
  */
 void Automation_Update(int16_t temperature, int16_t humidity);
 
@@ -65,8 +83,8 @@ uint8_t GetDehumidifierState(void);
  *
  * This function updates the setpoints for temperature and humidity and stores them in EEPROM.
  *
- * @param temp The new temperature setpoint (in hundredths of degrees Celsius).
- * @param hum The new humidity setpoint (in hundredths of percent relative humidity).
+ * @param temp The new temperature setpoint (in tenths of degrees Celsius).
+ * @param hum The new humidity setpoint (in tenths of percent relative humidity).
  */
 void Automation_SetSetpoints(int16_t temp, int16_t hum);
 

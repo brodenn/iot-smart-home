@@ -25,9 +25,13 @@
 
 #include "../include/helpers.h"
 #include "../include/globals.h"
+#include "../include/eeprom.h"
+#include "../include/wifi_tcp.h"
 #include "../include/automation.h"
 #include "../include/sensor.h"
-#include "../include/wifi_tcp.h"
+#include "../include/i2c.h"
+#include "../include/wifi_handshake.h"
+#include "../include/wifi_commands.h"
 
 #include <Arduino.h>
 #include <string.h>
@@ -206,4 +210,137 @@ void formatSensorData(char *buffer, size_t len, int16_t temperature, int16_t hum
         SP_TEMP / 100.0, 
         SP_HUM / 100.0
     );
+}
+
+/**
+ * @brief Initializes the serial communication for debugging.
+ *
+ * This function sets up the serial communication at a baud rate of 9600 and waits for it to stabilize.
+ */
+void initializeSerial() {
+    Serial.begin(9600);
+    delay(5000);  // Wait for serial communication to stabilize
+}
+
+/**
+ * @brief Initializes the ESP8266 module.
+ *
+ * This function sets up the serial communication with the ESP8266 at a baud rate of 9600 and waits for it to initialize.
+ * It also enables echo on the ESP8266.
+ */
+void initializeESP() {
+    espSerial.begin(9600);
+    delay(7000);  // Wait for ESP8266 to initialize
+    enableEcho();  // Enable echo on the ESP8266
+}
+
+/**
+ * @brief Reads the temperature and humidity setpoints from EEPROM.
+ *
+ * This function reads the stored temperature and humidity setpoints from EEPROM and updates the automation module.
+ */
+void readSetpointsFromEEPROM() {
+    int16_t storedTemp = eeprom_read_word(EEPROM_TEMP_ADDR);
+    int16_t storedHum = eeprom_read_word(EEPROM_HUM_ADDR);
+    Automation_SetSetpoints(storedTemp, storedHum);
+}
+
+/**
+ * @brief Reads the Wi-Fi credentials from EEPROM.
+ *
+ * This function reads the stored Wi-Fi SSID and password from EEPROM.
+ */
+void readWiFiCredentialsFromEEPROM() {
+    eeprom_read_string(EEPROM_SSID_ADDR, ssid, sizeof(ssid));
+    eeprom_read_string(EEPROM_PASSWORD_ADDR, password, sizeof(password));
+}
+
+/**
+ * @brief Stores default Wi-Fi credentials in EEPROM if none are found.
+ *
+ * This function checks if the Wi-Fi SSID and password are empty, and if so, stores default credentials in EEPROM.
+ */
+void storeDefaultCredentialsIfNeeded() {
+    if (strlen(ssid) == 0 || strlen(password) == 0) {
+        strcpy(ssid, "TN_24GHz_F3908D");
+        strcpy(password, "UP7ADFCFXJ");
+        eeprom_write_string(EEPROM_SSID_ADDR, ssid);
+        eeprom_write_string(EEPROM_PASSWORD_ADDR, password);
+    }
+}
+
+/**
+ * @brief Initializes the sensors.
+ *
+ * This function initializes the ADC and I2C interfaces for sensor communication.
+ */
+void initializeSensors() {
+    ADC_Init();  // Initialize ADC
+    I2C_Init();  // Initialize I2C
+}
+
+/**
+ * @brief Handles incoming TCP messages.
+ *
+ * This function checks if there are any incoming TCP messages and processes them.
+ */
+void handleIncomingMessages() {
+    if (espSerial.available()) {
+        receiveTCPMessage();  // Handle incoming TCP messages
+    }
+}
+
+/**
+ * @brief Checks and reconnects to the TCP server if needed.
+ *
+ * This function checks the TCP connection status and reconnects to the server if the connection is lost.
+ */
+void checkAndReconnectTCP() {
+    if (!checkConnection()) {
+        connectToTCPServer();  // Reconnect to TCP server if connection is lost
+    }
+}
+
+/**
+ * @brief Performs a handshake with the server if needed.
+ *
+ * This function performs a handshake with the server if it has not been done yet.
+ */
+void performHandshakeIfNeeded() {
+    if (!handshake_done) {
+        performHandshake();  // Perform handshake if not done
+    }
+}
+
+/**
+ * @brief Reads sensor data.
+ *
+ * This function reads the temperature, humidity, and light intensity from the sensors and stores them in global variables.
+ */
+void readSensorData() {
+    globalTemperature = Si7021_ReadTemperature();  // Read temperature
+    globalHumidity = Si7021_ReadHumidity();  // Read humidity
+    globalLight = LightSensor_ReadLux();  // Read light intensity
+}
+
+/**
+ * @brief Updates the automation states based on sensor data.
+ *
+ * This function updates the automation states using the current temperature and humidity readings.
+ */
+void updateAutomationStates() {
+    Automation_Update(globalTemperature, globalHumidity);  // Update automation states
+}
+
+/**
+ * @brief Sends sensor data to the server.
+ *
+ * This function formats the sensor data into a JSON string and sends it to the server via TCP.
+ */
+void sendSensorData() {
+    // Use the global variables for sensor data
+    char sensorData[128];
+    formatSensorData(sensorData, sizeof(sensorData), globalTemperature, globalHumidity, globalLight);
+
+    sendTCPMessage(sensorData);  // Send sensor data to the server
 }

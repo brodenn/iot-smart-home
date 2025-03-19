@@ -29,6 +29,10 @@
 const int EEPROM_TEMP_ADDR = 0; ///< EEPROM address for storing the temperature setpoint.
 const int EEPROM_HUM_ADDR = 2;  ///< EEPROM address for storing the humidity setpoint.
 
+// EEPROM addresses for Wi-Fi credentials
+const int EEPROM_SSID_ADDR = 4;       ///< EEPROM address for storing the Wi-Fi SSID.
+const int EEPROM_PASSWORD_ADDR = 36;  ///< EEPROM address for storing the Wi-Fi password.
+
 /**
  * @brief Writes a 16-bit word to the specified EEPROM address.
  *
@@ -50,5 +54,26 @@ void eeprom_write_word(uint16_t address, uint16_t value);
  * @return The 16-bit value read from the EEPROM.
  */
 uint16_t eeprom_read_word(uint16_t address);
+
+/**
+ * @brief Writes a string to the specified EEPROM address.
+ *
+ * This function writes a string to the EEPROM memory of the AVR microcontroller.
+ *
+ * @param address The EEPROM address to write to.
+ * @param str The string to write to the EEPROM.
+ */
+void eeprom_write_string(uint16_t address, const char* str);
+
+/**
+ * @brief Reads a string from the specified EEPROM address.
+ *
+ * This function reads a string from the EEPROM memory of the AVR microcontroller.
+ *
+ * @param address The EEPROM address to read from.
+ * @param buffer The buffer to store the read string.
+ * @param length The maximum length of the string to read.
+ */
+void eeprom_read_string(uint16_t address, char* buffer, uint16_t length);
 
 #endif // EEPROM_H
