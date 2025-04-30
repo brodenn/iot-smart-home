@@ -95,6 +95,10 @@ The system uses multiple communication protocols:
 - **ESP32 ↔ Shelly Plug S (HTTP)**: Sends commands to control the heater and humidifier.
 - **ESP32 ↔ Web Dashboard (HTTP Server)**: Displays real-time sensor values and allows remote setpoint updates.
 
+## Additional Information
+
+For full details about the project, including design decisions, implementation details, and testing results, please refer to the accompanying report: **Smart Home System.pdf**.
+
 ## Contributing
 
 Contributions are welcome! Please fork the repository and submit a pull request with your changes.
