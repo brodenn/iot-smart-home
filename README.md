@@ -98,11 +98,3 @@ The system uses multiple communication protocols:
 ## Additional Information
 
 For full details about the project, including design decisions, implementation details, and testing results, please refer to the accompanying report: **Smart Home System.pdf**.
-
-## Contributing
-
-Contributions are welcome! Please fork the repository and submit a pull request with your changes.
-
-## License
-
-This project is licensed under the MIT License. See the `LICENSE` file for details.
