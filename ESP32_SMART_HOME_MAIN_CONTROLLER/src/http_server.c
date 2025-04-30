@@ -36,14 +36,6 @@ static const char *TAG = "HTTP_SERVER";
 extern int16_t SP_TEMP; // Declare the external variables
 extern int16_t SP_HUM;
 
-/**
- * @brief Handles HTTP GET requests to serve the web interface.
- *
- * This function sends the HTML content for the web interface in smaller chunks to the client.
- *
- * @param req The HTTP request.
- * @return ESP_OK on success, or an error code on failure.
- */
 esp_err_t get_data_handler(httpd_req_t *req) {
     char buffer[1536]; // Buffer size
 
@@ -208,14 +200,7 @@ esp_err_t get_data_handler(httpd_req_t *req) {
     return ESP_OK;
 }
 
-/**
- * @brief Handles HTTP GET requests to provide sensor data in JSON format.
- *
- * This function sends the current sensor data and setpoints as a JSON response.
- *
- * @param req The HTTP request.
- * @return ESP_OK on success, or an error code on failure.
- */
+
 esp_err_t get_data_api_handler(httpd_req_t *req) {
     char response[256];
     snprintf(response, sizeof(response), 
@@ -225,15 +210,7 @@ esp_err_t get_data_api_handler(httpd_req_t *req) {
     return ESP_OK;
 }
 
-/**
- * @brief Handles HTTP POST requests to update setpoints.
- *
- * This function parses the URL-encoded form data to extract the new setpoints for temperature and humidity.
- * It updates the global setpoints, sends them to the Arduino over TCP, and controls Shelly devices based on the setpoints.
- *
- * @param req The HTTP request.
- * @return ESP_OK on success, or an error code on failure.
- */
+
 esp_err_t setpoints_handler(httpd_req_t *req) {
     char content[128]; // Buffer to hold the URL-encoded payload
     int ret = httpd_req_recv(req, content, sizeof(content) - 1);
@@ -303,12 +280,7 @@ esp_err_t setpoints_handler(httpd_req_t *req) {
     return ESP_OK;
 }
 
-/**
- * @brief Starts the HTTP server.
- *
- * This function initializes and starts the HTTP server, registering URI handlers for the web interface,
- * sensor data API, and setpoints update.
- */
+
 void start_http_server(void) {
     httpd_handle_t server = NULL;
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();

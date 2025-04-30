@@ -29,14 +29,7 @@
 
 static const char *TAG = "JSON_PARSER";
 
-/**
- * @brief Parses the incoming JSON data.
- *
- * This function parses the incoming JSON data to extract sensor readings and control commands.
- * It updates the global variables with the extracted values.
- *
- * @param json_data The incoming JSON data.
- */
+
 void parse_json(const char* json_data) {
     cJSON *root = cJSON_Parse(json_data);
     if (root == NULL) {

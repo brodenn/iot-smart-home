@@ -32,12 +32,7 @@ extern SoftwareSerial espSerial;
 extern bool serialBusy;
 extern bool connected;
 
-/**
- * @brief Resets the ESP8266 and ensures it's ready before continuing.
- *
- * This function sends the reset command to the ESP8266, waits for it to reset, and then checks if it is ready.
- * If the ESP8266 is not connected to Wi-Fi, it attempts to connect.
- */
+
 void resetESP8266() {
     while (serialBusy);
     serialBusy = true;
@@ -63,14 +58,7 @@ void resetESP8266() {
     serialBusy = false;
 }
 
-/**
- * @brief Connects to Wi-Fi (only if necessary).
- *
- * This function checks if the ESP8266 is already connected to a Wi-Fi network. If not, it sends the SSID and password
- * to connect to the specified Wi-Fi network.
- *
- * @return True if connected, false otherwise.
- */
+
 bool connectToWiFi() {
     while (serialBusy);
     serialBusy = true;
@@ -104,16 +92,7 @@ bool connectToWiFi() {
     return (strstr(response, "WIFI CONNECTED") != NULL);
 }
 
-/**
- * @brief Executes AT commands with retries.
- *
- * This function sends an AT command to the ESP8266 and waits for a response. If the response indicates that the ESP8266
- * is busy, it retries the command up to three times. If the command fails, it resets the ESP8266.
- *
- * @param command The AT command to send.
- * @param timeout The timeout period in milliseconds.
- * @return True if the command is successful, false otherwise.
- */
+
 bool sendATCommand(const char* command, unsigned long timeout) {
     int retries = 0;
     char response[64];
@@ -147,14 +126,7 @@ bool sendATCommand(const char* command, unsigned long timeout) {
     return false;
 }
 
-/**
- * @brief Waits for the ESP8266 to be ready.
- *
- * This function sends the "AT" command to the ESP8266 and waits for an "OK" response within the specified timeout period.
- *
- * @param timeout The timeout period in milliseconds.
- * @return True if the ESP8266 is ready, false otherwise.
- */
+
 bool waitForESPReady(unsigned long timeout) {
     unsigned long startMillis = millis();
     char response[64];
@@ -172,13 +144,7 @@ bool waitForESPReady(unsigned long timeout) {
     return false;
 }
 
-/**
- * @brief Checks the Wi-Fi connection status based on the AT+CWJAP? response.
- *
- * This function sends the "AT+CWJAP?" command to the ESP8266 and checks if it is connected to a Wi-Fi network.
- *
- * @return True if connected, false otherwise.
- */
+
 bool checkWiFiConnection() {
     while (serialBusy);
     serialBusy = true;
@@ -192,11 +158,7 @@ bool checkWiFiConnection() {
     return (strstr(response, "+CWJAP:") != NULL);
 }
 
-/**
- * @brief Enables command echo on the ESP8266.
- *
- * This function sends the "ATE1" command to the ESP8266 to enable command echo.
- */
+
 void enableEcho() {
     sendATCommand("ATE1", 1000);
 }

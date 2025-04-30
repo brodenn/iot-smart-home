@@ -37,12 +37,6 @@
 #include "../include/eeprom.h"
 #include "../include/wifi_commands.h"
 
-/**
- * @brief Sets up the system components.
- *
- * This function initializes the serial communication, reads setpoints from EEPROM,
- * initializes the Wi-Fi and TCP communication, and sets up the I2C and automation modules.
- */
 void setup() {
     initializeSerial();
     initializeESP();
@@ -51,16 +45,9 @@ void setup() {
     storeDefaultCredentialsIfNeeded();
     initializeWiFiAndTCP();
     initializeSensors();
-    Automation_Init();  // Initialize automation system
+    Automation_Init(); 
 }
 
-/**
- * @brief Main loop function.
- *
- * This function continuously monitors the system states, handles incoming TCP messages,
- * checks the TCP connection status, performs handshake if needed, and updates the system
- * states based on sensor readings.
- */
 void loop() {
     handleIncomingMessages();
     checkAndReconnectTCP();

@@ -1,3 +1,12 @@
+/**
+ * @file globals.h
+ * @brief This header file contains global variable declarations for the ESP32 Smart Home Main Controller project.
+ *
+ * The variables declared here are used across multiple source files to manage
+ * temperature, humidity, light intensity, and device states, as well as network communication.
+ *
+ * @note Ensure proper synchronization when accessing these variables in a multithreaded environment.
+ */
 #ifndef GLOBALS_H
 #define GLOBALS_H
 

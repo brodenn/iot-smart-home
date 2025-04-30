@@ -38,15 +38,7 @@ int16_t SP_HUM = 5000;         ///< Default setpoint humidity: 50.00%RH.
 
 static char last_log_message[256] = ""; ///< Buffer to store the last logged message for deduplication.
 
-/**
- * @brief Logs a message with deduplication.
- *
- * This function logs a message using the ESP_LOGI function, but only if the new message is different from the last logged message.
- * It helps to avoid logging the same message repeatedly.
- *
- * @param tag The tag to use for the log message.
- * @param message The message to log.
- */
+
 void log_message(const char *tag, const char *message) {
     // Check if the new message is similar to the last logged message
     if (strncmp(message, last_log_message, 100) != 0) {

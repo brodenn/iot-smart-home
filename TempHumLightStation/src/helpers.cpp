@@ -36,27 +36,14 @@
 #include <Arduino.h>
 #include <string.h>
 
-/**
- * @brief Clears the serial buffer of the ESP8266.
- *
- * This function reads and discards any data available in the ESP8266's serial buffer.
- * It is useful for ensuring that the buffer is empty before sending new commands.
- */
+
 void clearESPBuffer() {
     while (espSerial.available()) {
         espSerial.read();
     }
 }
 
-/**
- * @brief Reads the full response from the ESP8266 into a fixed-size buffer.
- *
- * This function reads data from the ESP8266's serial buffer into the provided buffer
- * until a timeout occurs or a key response is detected.
- *
- * @param buffer The buffer to store the response.
- * @param len The length of the buffer.
- */
+
 void getResponse(char *buffer, size_t len) {
     memset(buffer, 0, len);  // Clear buffer
     size_t index = 0;
@@ -87,28 +74,14 @@ void getResponse(char *buffer, size_t len) {
     }
 }
 
-/**
- * @brief Wrapper function to get the response from the ESP8266 as a String.
- *
- * This function calls getResponse() and returns the response as a String.
- *
- * @return The response from the ESP8266 as a String.
- */
+
 String getResponse() {
     char response[128];  // Increased buffer size for longer responses
     getResponse(response, sizeof(response));
     return String(response);  
 }
 
-/**
- * @brief Waits for a specific response from the ESP8266.
- *
- * This function waits for the specified response from the ESP8266 within the given timeout period.
- *
- * @param expected The expected response string.
- * @param timeout The timeout period in milliseconds.
- * @return True if the expected response is received, false otherwise.
- */
+
 bool waitForResponse(const char *expected, unsigned long timeout) {
     char response[128];  
     unsigned long startTime = millis();
@@ -125,13 +98,6 @@ bool waitForResponse(const char *expected, unsigned long timeout) {
     return false;
 }
 
-/**
- * @brief Checks the TCP connection status with the ESP8266.
- *
- * This function checks if the system is connected to the TCP server. If not, it attempts to reconnect.
- *
- * @return True if connected, false otherwise.
- */
 bool checkConnection() {
     if (connected) {
         return true;
@@ -152,14 +118,7 @@ bool checkConnection() {
     return connected;
 }
 
-/**
- * @brief Handles incoming data and extracts temperature and humidity setpoints.
- *
- * This function parses the incoming data to extract temperature and humidity setpoints
- * and updates the automation module with the new setpoints.
- *
- * @param data The incoming data containing the setpoints.
- */
+
 void handleSetpoints(const String &data) {
     const char *cstrData = data.c_str();
     const char *tempPtr = strstr(cstrData, "temp=");
@@ -188,17 +147,7 @@ void handleSetpoints(const String &data) {
     }
 }
 
-/**
- * @brief Generates a JSON string for sensor data with safe formatting.
- *
- * This function formats the sensor data into a JSON string and stores it in the provided buffer.
- *
- * @param buffer The buffer to store the JSON string.
- * @param len The length of the buffer.
- * @param temperature The temperature reading (in tenths of degrees Celsius).
- * @param humidity The humidity reading (in tenths of percent relative humidity).
- * @param light The light intensity reading (in lux).
- */
+
 void formatSensorData(char *buffer, size_t len, int16_t temperature, int16_t humidity, uint16_t light) {
     snprintf(buffer, len,
         "{\"temperature\":%.2f,\"humidity\":%.2f,\"lux\":%u,\"heater\":%s,\"dehumidifier\":%s,\"sp_temperature\":%.2f,\"sp_humidity\":%.2f}\n",
@@ -212,54 +161,33 @@ void formatSensorData(char *buffer, size_t len, int16_t temperature, int16_t hum
     );
 }
 
-/**
- * @brief Initializes the serial communication for debugging.
- *
- * This function sets up the serial communication at a baud rate of 9600 and waits for it to stabilize.
- */
+
 void initializeSerial() {
     Serial.begin(9600);
     delay(5000);  // Wait for serial communication to stabilize
 }
 
-/**
- * @brief Initializes the ESP8266 module.
- *
- * This function sets up the serial communication with the ESP8266 at a baud rate of 9600 and waits for it to initialize.
- * It also enables echo on the ESP8266.
- */
+
 void initializeESP() {
     espSerial.begin(9600);
     delay(7000);  // Wait for ESP8266 to initialize
-    enableEcho();  // Enable echo on the ESP8266
+    enableEcho();  
 }
 
-/**
- * @brief Reads the temperature and humidity setpoints from EEPROM.
- *
- * This function reads the stored temperature and humidity setpoints from EEPROM and updates the automation module.
- */
+
 void readSetpointsFromEEPROM() {
     int16_t storedTemp = eeprom_read_word(EEPROM_TEMP_ADDR);
     int16_t storedHum = eeprom_read_word(EEPROM_HUM_ADDR);
     Automation_SetSetpoints(storedTemp, storedHum);
 }
 
-/**
- * @brief Reads the Wi-Fi credentials from EEPROM.
- *
- * This function reads the stored Wi-Fi SSID and password from EEPROM.
- */
+
 void readWiFiCredentialsFromEEPROM() {
     eeprom_read_string(EEPROM_SSID_ADDR, ssid, sizeof(ssid));
     eeprom_read_string(EEPROM_PASSWORD_ADDR, password, sizeof(password));
 }
 
-/**
- * @brief Stores default Wi-Fi credentials in EEPROM if none are found.
- *
- * This function checks if the Wi-Fi SSID and password are empty, and if so, stores default credentials in EEPROM.
- */
+
 void storeDefaultCredentialsIfNeeded() {
     if (strlen(ssid) == 0 || strlen(password) == 0) {
         strcpy(ssid, "TN_24GHz_F3908D");
@@ -269,74 +197,45 @@ void storeDefaultCredentialsIfNeeded() {
     }
 }
 
-/**
- * @brief Initializes the sensors.
- *
- * This function initializes the ADC and I2C interfaces for sensor communication.
- */
+
 void initializeSensors() {
     ADC_Init();  // Initialize ADC
     I2C_Init();  // Initialize I2C
 }
 
-/**
- * @brief Handles incoming TCP messages.
- *
- * This function checks if there are any incoming TCP messages and processes them.
- */
+
 void handleIncomingMessages() {
     if (espSerial.available()) {
         receiveTCPMessage();  // Handle incoming TCP messages
     }
 }
 
-/**
- * @brief Checks and reconnects to the TCP server if needed.
- *
- * This function checks the TCP connection status and reconnects to the server if the connection is lost.
- */
+
 void checkAndReconnectTCP() {
     if (!checkConnection()) {
         connectToTCPServer();  // Reconnect to TCP server if connection is lost
     }
 }
 
-/**
- * @brief Performs a handshake with the server if needed.
- *
- * This function performs a handshake with the server if it has not been done yet.
- */
+
 void performHandshakeIfNeeded() {
     if (!handshake_done) {
         performHandshake();  // Perform handshake if not done
     }
 }
 
-/**
- * @brief Reads sensor data.
- *
- * This function reads the temperature, humidity, and light intensity from the sensors and stores them in global variables.
- */
 void readSensorData() {
     globalTemperature = Si7021_ReadTemperature();  // Read temperature
     globalHumidity = Si7021_ReadHumidity();  // Read humidity
     globalLight = LightSensor_ReadLux();  // Read light intensity
 }
 
-/**
- * @brief Updates the automation states based on sensor data.
- *
- * This function updates the automation states using the current temperature and humidity readings.
- */
+
 void updateAutomationStates() {
     Automation_Update(globalTemperature, globalHumidity);  // Update automation states
 }
 
-/**
- * @brief Sends sensor data to the server.
- *
- * This function formats the sensor data into a JSON string and sends it to the server via TCP.
- */
+
 void sendSensorData() {
     // Use the global variables for sensor data
     char sensorData[128];

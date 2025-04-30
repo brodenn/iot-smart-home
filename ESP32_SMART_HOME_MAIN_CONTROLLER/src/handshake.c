@@ -28,13 +28,7 @@
 
 static const char *TAG = "HANDSHAKE";
 
-/**
- * @brief Sanitizes handshake input to remove extra characters.
- *
- * This function removes newline characters and unwanted "AT" characters from the handshake input.
- *
- * @param input The input string to sanitize.
- */
+
 void sanitize_handshake(char *input) {
     char *newline = strchr(input, '\n');
     if (newline) *newline = '\0';  
@@ -43,12 +37,7 @@ void sanitize_handshake(char *input) {
     if (extra) *extra = '\0';  
 }
 
-/**
- * @brief Performs the handshake process with the Arduino.
- *
- * This function attempts to perform a handshake with the Arduino by sending and receiving handshake messages.
- * It retries the handshake process up to a maximum number of retries if the handshake is not successful.
- */
+
 void performHandshake() {
     if (handshake_done) {
         ESP_LOGW(TAG, "⚠️ Handshake already completed. Skipping...");

@@ -25,11 +25,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 
-/**
- * @brief Main entry point for the ESP32 Smart Home Main Controller project.
- *
- * This function initializes the Wi-Fi interface, starts the TCP server, and starts the HTTP server.
- */
+
 void app_main(void) {
     ESP_LOGI("MAIN", "Starting Wi-Fi...");
     wifi_init();

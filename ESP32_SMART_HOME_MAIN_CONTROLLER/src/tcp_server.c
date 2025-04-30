@@ -49,11 +49,7 @@ static const char *TAG = "TCP_SERVER";
 const char* heaterIP = "192.168.10.199";
 const char* humidifierIP = "192.168.10.201";
 
-/**
- * @brief Sanitizes input by removing newlines, carriage returns, and trailing curly brackets.
- *
- * @param input The input string to sanitize.
- */
+
 void sanitize_input(char *input) {
     size_t len = strlen(input);
     while (len > 0 && (input[len - 1] == '\n' || input[len - 1] == '\r' || input[len - 1] == '}')) {
@@ -61,12 +57,7 @@ void sanitize_input(char *input) {
     }
 }
 
-/**
- * @brief Sends an HTTP request to control the heater or humidifier.
- *
- * @param deviceIP The IP address of the device to control.
- * @param turnOn True to turn on the device, false to turn it off.
- */
+
 void send_http_request(const char* deviceIP, bool turnOn) {
     char url[128];
     snprintf(url, sizeof(url), "http://%s/rpc/Switch.Set?id=0&on=%s", deviceIP, turnOn ? "true" : "false");
@@ -87,11 +78,7 @@ void send_http_request(const char* deviceIP, bool turnOn) {
     }
 }
 
-/**
- * @brief Sends a TCP message ensuring all bytes are sent.
- *
- * @param message The message to send.
- */
+
 void send_tcp_message(const char *message) {
     if (client_sock < 0) return;
 
@@ -106,12 +93,7 @@ void send_tcp_message(const char *message) {
     }
 }
 
-/**
- * @brief Sends a TCP message and waits for acknowledgment.
- *
- * @param message The message to send.
- * @param ackReceived Pointer to a boolean that will be set to true if acknowledgment is received.
- */
+
 void send_tcp_message_with_ack(const char *message, bool *ackReceived) {
     const int maxRetries = 3;
     *ackReceived = false;
@@ -132,11 +114,7 @@ void send_tcp_message_with_ack(const char *message, bool *ackReceived) {
     }
 }
 
-/**
- * @brief Handles received JSON data.
- *
- * @param data The received JSON data.
- */
+
 void handle_received_data(const char* data) {
     static char json_buffer[512] = {0};  
     static size_t json_index = 0;
@@ -192,13 +170,7 @@ void handle_received_data(const char* data) {
     cJSON_Delete(json);
 }
 
-/**
- * @brief TCP Server Task.
- *
- * This function initializes and runs the TCP server, handling incoming connections and messages.
- *
- * @param pvParameters Task parameters (not used).
- */
+
 void tcp_server_task(void *pvParameters) {
     struct sockaddr_in server_addr = {
         .sin_addr.s_addr = htonl(INADDR_ANY),
@@ -259,13 +231,7 @@ void tcp_server_task(void *pvParameters) {
     vTaskDelete(NULL);
 }
 
-/**
- * @brief Sends setpoints with acknowledgment.
- *
- * This function sends setpoints to the client and waits for acknowledgment.
- *
- * @param setpoints The setpoints to send.
- */
+
 void send_setpoints_with_ack(const char *setpoints) {
     const int maxRetries = 5;
     int retries = 0;
@@ -295,13 +261,7 @@ void send_setpoints_with_ack(const char *setpoints) {
     }
 }
 
-/**
- * @brief Sends data to the web server.
- *
- * This function sends data to the web server via an HTTP POST request.
- *
- * @param data The data to send.
- */
+
 void send_data_to_web_server(const char* data) {
     esp_http_client_config_t config = {
         .url = "http://192.168.10.206/update", // Replace with your actual web server URL or IP address

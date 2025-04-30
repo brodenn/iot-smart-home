@@ -31,16 +31,7 @@
 
 static const char *TAG = "WIFI";
 
-/**
- * @brief Wi-Fi event handler.
- *
- * This function handles Wi-Fi events such as station start, disconnection, and IP acquisition.
- *
- * @param arg User-defined argument.
- * @param event_base Event base.
- * @param event_id Event ID.
- * @param event_data Event data.
- */
+
 static void wifi_event_handler(void* arg, esp_event_base_t event_base, int32_t event_id, void* event_data) {
     if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_START) {
         esp_wifi_connect();
@@ -53,12 +44,7 @@ static void wifi_event_handler(void* arg, esp_event_base_t event_base, int32_t e
     }
 }
 
-/**
- * @brief Initializes the Wi-Fi interface.
- *
- * This function initializes the non-volatile storage, network interface, event loop, and Wi-Fi interface.
- * It then configures the Wi-Fi interface to connect to the specified SSID and password.
- */
+
 void wifi_init(void) {
     ESP_ERROR_CHECK(nvs_flash_init());
     ESP_ERROR_CHECK(esp_netif_init());
