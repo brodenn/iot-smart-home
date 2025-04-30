@@ -60,33 +60,6 @@ iot-smart-home/
 └── README.md                     # Main project documentation
 ```
 
-## Getting Started
-
-### Prerequisites
-
-- [PlatformIO](https://platformio.org/) installed in your development environment.
-- A compatible ESP32 board for the main controller.
-- A compatible microcontroller (e.g., Arduino Uno) for the TempHumLightStation.
-- Shelly Smart Plug S for appliance control.
-
-### Building and Flashing
-
-1. Navigate to the desired project directory (`ESP32_SMART_HOME_MAIN_CONTROLLER` or `TempHumLightStation`).
-2. Open the project in Visual Studio Code with the PlatformIO extension.
-3. Build the project using the PlatformIO build system.
-4. Flash the firmware to the respective device.
-
-### Configuration
-
-- Update Wi-Fi credentials in the `TempHumLightStation` EEPROM or use the default credentials.
-- Modify setpoints and automation logic as needed in the source code.
-
-## Usage
-
-- Access the HTTP server hosted by the ESP32 Smart Home Main Controller to monitor and update setpoints.
-- The TempHumLightStation will automatically send sensor data to the main controller and respond to setpoint changes.
-- Use the web dashboard to view real-time sensor readings and control automation settings.
-
 ## Communication
 
 The system uses multiple communication protocols:
