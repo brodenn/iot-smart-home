@@ -33,7 +33,6 @@ This project integrates various hardware components and features to create a sma
   - **SparkFun Weather Shield**: Includes sensors for temperature, humidity, and light intensity.
     - **Si7021 Sensor**: Measures temperature and humidity.
     - **Light Sensor**: Measures ambient light intensity.
-  - **EEPROM**: Stores configuration settings such as setpoints and Wi-Fi credentials.
 - **Features**:
   - Reads temperature, humidity, and light sensor data using the SparkFun Weather Shield.
   - Stores and retrieves configuration settings from EEPROM.
