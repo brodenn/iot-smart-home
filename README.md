@@ -31,8 +31,7 @@ This project integrates various hardware components and features to create a sma
   - **Arduino Uno**: Serves as the microcontroller for the peripheral station.
   - **ESP8266 Wi-Fi Module**: Provides Wi-Fi connectivity for communication with the ESP32.
   - **SparkFun Weather Shield**: Includes sensors for temperature, humidity, and light intensity.
-    - **Si7021 Sensor**: Measures temperature and humidity.
-    - **Light Sensor**: Measures ambient light intensity.
+  
 - **Features**:
   - Reads temperature, humidity, and light sensor data using the SparkFun Weather Shield.
   - Stores and retrieves configuration settings from EEPROM.
